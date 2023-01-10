@@ -1,22 +1,20 @@
 #![no_std]
 #![no_main]
 #![allow(non_snake_case)]
+#![feature(abi_x86_interrupt)]
 
-mod vga_buffer;
+use TrashOS::println;
 use core::panic::PanicInfo;
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    println!("Some dirty words that you will not see.");
-    clear_screen!();
-    println!("Hello, World!");
-    println!("Some numbers: {} {}", 42, 1.337);
-    
-    loop {}
+    TrashOS::init();
+    println!("min0911_ TQL%%%!");
+    loop { x86_64::instructions::hlt(); }
 }
 
 #[panic_handler]
 fn panic(_panic_info: &PanicInfo<'_>) -> ! {
     println!("{}", _panic_info);
-    loop {}
+    loop { x86_64::instructions::hlt(); }
 }

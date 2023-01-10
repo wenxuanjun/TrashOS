@@ -152,12 +152,18 @@ macro_rules! clear_screen {
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
-    WRITER.lock().write_fmt(args).unwrap();
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        WRITER.lock().write_fmt(args).unwrap();
+    });
 }
 
 #[doc(hidden)]
 pub fn _clear_screen() {
-    WRITER.lock().clear_screen();
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        WRITER.lock().clear_screen();
+    });
 }
 
 lazy_static! {
@@ -165,6 +171,6 @@ lazy_static! {
         row_position: 0,
         column_position: 0,
         color_code: ColorCode::new(Color::White, Color::Black),
-        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
+        buffer: unsafe { &mut *(0xb8000 as *mut Buffer) }
     });
 }
