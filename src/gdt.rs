@@ -13,11 +13,13 @@ struct Selectors {
     tss_selector: SegmentSelector,
 }
 
-pub fn init() {
-    GDT.0.load();
+pub fn init_gdt() {
+    let descriptor_table = &GDT.0;
+    descriptor_table.load();
     unsafe {
-        CS::set_reg(GDT.1.code_selector);
-        load_tss(GDT.1.tss_selector);
+        let selectors = &GDT.1;
+        CS::set_reg(selectors.code_selector);
+        load_tss(selectors.tss_selector);
     }
 }
 

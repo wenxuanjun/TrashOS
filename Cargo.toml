@@ -4,17 +4,38 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bootloader = "0.9.23"
 x86_64 = "0.14.10"
 volatile = "0.2.6"
 spin = "0.5.2"
 uart_16550 = "0.2.18"
 pic8259 = "0.10.2"
 pc-keyboard = "0.6.1"
+linked_list_allocator = "0.9.1"
+
+[dependencies.bootloader]
+version = "0.9.23"
+features = ["map_physical_memory"]
 
 [dependencies.lazy_static]
 version = "1.0"
 features = ["spin_no_std"]
 
+[dependencies.crossbeam-queue]
+version = "0.2.1"
+features = ["alloc"]
+default-features = false
+
+[dependencies.futures-util]
+version = "0.3.4"
+features = ["alloc"]
+default-features = false
+
+[dependencies.conquer-once]
+version = "0.2.0"
+default-features = false
+
 [package.metadata.bootimage]
 run-args = ["-serial", "stdio"]
+
+[package.metadata.bootloader]
+physical-memory-offset = "0x0000f00000000000"
