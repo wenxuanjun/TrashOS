@@ -1,9 +1,5 @@
-[build]
-target = "target.json"
-
 [unstable]
-build-std-features = ["compiler-builtins-mem"]
-build-std = ["core", "compiler_builtins", "alloc"]
+bindeps = true
 
-[target.'cfg(target_os = "none")']
-runner = "bootimage runner"
+[alias]
+bin = "run --package boot --"

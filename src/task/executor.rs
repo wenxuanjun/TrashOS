@@ -13,6 +13,7 @@ impl TaskWaker {
     fn new(task_id: TaskId, task_queue: Arc<ArrayQueue<TaskId>>) -> Waker {
         Waker::from(Arc::new(TaskWaker { task_id, task_queue }))
     }
+
     fn wake_task(&self) {
         self.task_queue.push(self.task_id).expect("task_queue full");
     }
@@ -41,6 +42,7 @@ impl Executor {
             waker_cache: BTreeMap::new(),
         }
     }
+
     pub fn spawn(&mut self, task: Task) {
         let task_id = task.id;
         if self.tasks.insert(task.id, task).is_some() {
@@ -54,9 +56,15 @@ impl Executor {
     pub fn run(&mut self) -> ! {
         loop {
             self.run_ready_tasks();
-            self.sleep_if_idle();
+            interrupts::disable();
+            if self.task_queue.is_empty() {
+                enable_and_hlt();
+            } else {
+                interrupts::enable();
+            }
         }
     }
+
     fn run_ready_tasks(&mut self) {
         let Self { tasks, task_queue, waker_cache } = self;
 
@@ -76,14 +84,6 @@ impl Executor {
                 }
                 Poll::Pending => {}
             }
-        }
-    }
-    fn sleep_if_idle(&self) {
-        interrupts::disable();
-        if self.task_queue.is_empty() {
-            enable_and_hlt();
-        } else {
-            interrupts::enable();
         }
     }
 }
