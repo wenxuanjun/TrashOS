@@ -9,6 +9,7 @@ fn main() {
 
     bootloader::UefiBoot::new(&kernel).create_disk_image(&out_path).unwrap();
     println!("Created bootable UEFI disk image at {:#?}", &out_path);
+    println!("OVMF image at {:#?}", &ovmf_prebuilt::ovmf_pure_efi().display());
 
     if let Some(arg) = std::env::args().skip(1).next() {
         match arg.as_str() {

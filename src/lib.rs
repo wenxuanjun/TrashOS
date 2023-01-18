@@ -16,7 +16,7 @@ use bootloader_api::BootInfo;
 
 pub fn init(boot_info: &'static mut BootInfo) {
     gdt::init_gdt();
-    interrupts::init_idt();
+    interrupts::IDT.load();
     unsafe { interrupts::PICS.lock().initialize() };
     x86_64::instructions::interrupts::enable();
     printk::init(boot_info);

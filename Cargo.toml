@@ -21,8 +21,8 @@ lto = true
 
 [dependencies]
 x86_64 = "0.14.10"
-volatile = "0.2.6"
-spin = "0.5.2"
+volatile = "0.4.6"
+spin = "0.9.4"
 uart_16550 = "0.2.18"
 pic8259 = "0.10.2"
 pc-keyboard = "0.6.1"
@@ -31,7 +31,7 @@ bootloader_api = "0.11.0"
 
 [dependencies.noto-sans-mono-bitmap]
 version = "0.2.0"
-features = ["regular", "font_weights_default", "raster_heights_default", "unicode_ranges_default", "unicode-basic-latin", "size_24"]
+features = ["regular", "size_20", "unicode-basic-latin"]
 default-features = false
 
 [dependencies.lazy_static]
@@ -39,7 +39,7 @@ version = "1.0"
 features = ["spin_no_std"]
 
 [dependencies.crossbeam-queue]
-version = "0.2.1"
+version = "0.2.3"
 features = ["alloc"]
 default-features = false
 
@@ -49,5 +49,5 @@ features = ["alloc"]
 default-features = false
 
 [dependencies.conquer-once]
-version = "0.2.0"
+version = "0.3.2"
 default-features = false
