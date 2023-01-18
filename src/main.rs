@@ -16,16 +16,17 @@ use bootloader_api::config::{BootloaderConfig, Mapping};
 pub static BOOTLOADER_CONFIG: BootloaderConfig = {
     let mut config = BootloaderConfig::new_default();
     config.mappings.physical_memory = Some(Mapping::Dynamic);
-    //config.mappings.physical_memory_offset = Option::Some(0x0000f00000000000);
     config
 };
 
 entry_point!(main, config = &BOOTLOADER_CONFIG);
 
 fn main(boot_info: &'static mut BootInfo) -> ! {
-    TrashOS::init();
+    TrashOS::init(unsafe { &mut *(boot_info as *mut BootInfo) });
 
-    /*let offset = boot_info.physical_memory_offset.clone();
+    println!("Hello World{}", "!");
+
+    let offset = boot_info.physical_memory_offset.clone();
     let phys_mem_offset = VirtAddr::new(offset.into_option().unwrap());
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_regions) };
@@ -44,13 +45,7 @@ fn main(boot_info: &'static mut BootInfo) -> ! {
 
     let mut executor = Executor::new();
     executor.spawn(Task::new(keyboard::print_keypresses()));
-    executor.run();*/
-    if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
-        for byte in framebuffer.buffer_mut() {
-            *byte = 0x90;
-        }
-    }
-    loop {}
+    executor.run();
 }
 
 #[panic_handler]

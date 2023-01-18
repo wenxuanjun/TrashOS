@@ -29,6 +29,11 @@ pc-keyboard = "0.6.1"
 linked_list_allocator = "0.9.1"
 bootloader_api = "0.11.0"
 
+[dependencies.noto-sans-mono-bitmap]
+version = "0.2.0"
+features = ["regular", "font_weights_default", "raster_heights_default", "unicode_ranges_default", "unicode-basic-latin", "size_24"]
+default-features = false
+
 [dependencies.lazy_static]
 version = "1.0"
 features = ["spin_no_std"]
