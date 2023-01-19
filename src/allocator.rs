@@ -1,4 +1,3 @@
-
 use x86_64::VirtAddr;
 use x86_64::structures::paging::{mapper::MapToError, Mapper};
 use x86_64::structures::paging::{FrameAllocator, Page, PageTableFlags, Size4KiB};

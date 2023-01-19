@@ -7,6 +7,7 @@ extern crate alloc;
 use x86_64::VirtAddr;
 use core::panic::PanicInfo;
 use alloc::{boxed::Box, vec::Vec};
+use TrashOS::printk::PrintLevel;
 use TrashOS::{println, allocator, task::keyboard};
 use TrashOS::memory::{self, BootInfoFrameAllocator};
 use TrashOS::task::{Task, executor::Executor};
@@ -24,7 +25,10 @@ entry_point!(main, config = &BOOTLOADER_CONFIG);
 fn main(boot_info: &'static mut BootInfo) -> ! {
     TrashOS::init(unsafe { &mut *(boot_info as *mut BootInfo) });
 
-    println!("Hello World{}", "!");
+    TrashOS::log!(PrintLevel::Error, "This is an error message!");
+    TrashOS::log!(PrintLevel::Warn, "This is a warning message!");
+    TrashOS::log!(PrintLevel::Info, "This is an info message!");
+    TrashOS::log!(PrintLevel::Debug, "This is a debug message!");
 
     let offset = boot_info.physical_memory_offset.clone();
     let phys_mem_offset = VirtAddr::new(offset.into_option().unwrap());
