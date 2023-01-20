@@ -5,19 +5,22 @@
 
 pub mod gdt;
 pub mod interrupts;
+//pub mod apic;
 pub mod memory;
 pub mod serial;
 pub mod printk;
+pub mod log;
 pub mod allocator;
 pub mod task;
 
 extern crate alloc;
 use bootloader_api::BootInfo;
 
-pub fn init(boot_info: &'static mut BootInfo) {
+pub fn init(boot_info: &'static BootInfo) {
     gdt::init_gdt();
     interrupts::IDT.load();
-    unsafe { interrupts::PICS.lock().initialize() };
-    x86_64::instructions::interrupts::enable();
+    let mut memory = memory::init(boot_info);
+    allocator::init_heap(&mut memory);
+    //apic::init(boot_info);
     printk::init(boot_info);
 }

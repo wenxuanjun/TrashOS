@@ -32,7 +32,7 @@ acpi = "4.1.1"
 
 [dependencies.noto-sans-mono-bitmap]
 version = "0.2.0"
-features = ["regular", "size_32", "unicode-basic-latin"]
+features = ["regular", "size_20", "unicode-basic-latin"]
 default-features = false
 
 [dependencies.lazy_static]

@@ -1,19 +1,25 @@
-use bootloader_api::info::MemoryRegions;
-use bootloader_api::info::MemoryRegionKind;
-use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
-use x86_64::structures::paging::{OffsetPageTable, PageTable};
+use bootloader_api::BootInfo;
+use bootloader_api::info::{MemoryRegions, MemoryRegionKind};
 use x86_64::{PhysAddr, VirtAddr};
+use x86_64::structures::paging::{OffsetPageTable, PageTable};
+use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
 
-pub unsafe fn init(physical_memory_offset: VirtAddr) -> OffsetPageTable<'static> {
-    let level_4_table = active_level_4_table(physical_memory_offset);
-    OffsetPageTable::new(level_4_table, physical_memory_offset)
+pub fn init(boot_info: &'static BootInfo) -> (OffsetPageTable<'static>, BootInfoFrameAllocator) {
+    let offset = boot_info.physical_memory_offset.clone();
+    let phys_mem_offset = VirtAddr::new(offset.into_option().unwrap());
+    unsafe {
+        let page_table = active_page_table(phys_mem_offset);
+        let mapper = OffsetPageTable::new(page_table, phys_mem_offset);
+        let frame_allocator = BootInfoFrameAllocator::init(&boot_info.memory_regions);
+        return (mapper, frame_allocator);
+    }
 }
 
-pub unsafe fn active_level_4_table(physical_memory_offset: VirtAddr) -> &'static mut PageTable {
+pub unsafe fn active_page_table(phys_mem_offset: VirtAddr) -> &'static mut PageTable {
     use x86_64::registers::control::Cr3;
-    let (level_4_table_frame, _) = Cr3::read();
-    let phys = level_4_table_frame.start_address();
-    let virt = physical_memory_offset + phys.as_u64();
+    let (page_table_frame, _) = Cr3::read();
+    let phys = page_table_frame.start_address();
+    let virt = phys_mem_offset + phys.as_u64();
     let page_table_ptr: *mut PageTable = virt.as_mut_ptr();
     return &mut *page_table_ptr;
 }

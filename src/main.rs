@@ -3,13 +3,13 @@
 #![allow(non_snake_case)]
 #![feature(abi_x86_interrupt)]
 
+pub mod apic;
+
 extern crate alloc;
-use x86_64::VirtAddr;
 use core::panic::PanicInfo;
 use alloc::{boxed::Box, vec::Vec};
-use TrashOS::printk::PrintLevel;
-use TrashOS::{println, allocator, task::keyboard};
-use TrashOS::memory::{self, BootInfoFrameAllocator};
+use TrashOS::log::LogLevel;
+use TrashOS::{println, task::keyboard};
 use TrashOS::task::{Task, executor::Executor};
 use bootloader_api::{BootInfo, entry_point};
 use bootloader_api::config::{BootloaderConfig, Mapping};
@@ -23,20 +23,11 @@ pub static BOOTLOADER_CONFIG: BootloaderConfig = {
 entry_point!(main, config = &BOOTLOADER_CONFIG);
 
 fn main(boot_info: &'static mut BootInfo) -> ! {
-    TrashOS::init(unsafe { &mut *(boot_info as *mut BootInfo) });
+    TrashOS::init(boot_info);
 
-    TrashOS::log!(PrintLevel::Error, "This is an error message!");
-    TrashOS::log!(PrintLevel::Warn, "This is a warning message!");
-    TrashOS::log!(PrintLevel::Info, "This is an info message!");
-    TrashOS::log!(PrintLevel::Debug, "This is a debug message!");
-
-    let offset = boot_info.physical_memory_offset.clone();
-    let phys_mem_offset = VirtAddr::new(offset.into_option().unwrap());
-    let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_regions) };
-
-    allocator::init_heap(&mut mapper, &mut frame_allocator)
-        .expect("Heap initialization failed!");
+    TrashOS::log!(LogLevel::Error, "This is an error message!");
+    TrashOS::log!(LogLevel::Warn, "This is a warning message!");
+    TrashOS::log!(LogLevel::Debug, "This is a debug message!");
 
     let heap_value = Box::new(41);
     println!("The heap start at {:p}", heap_value);

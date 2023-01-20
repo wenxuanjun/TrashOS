@@ -1,6 +1,6 @@
 use x86_64::VirtAddr;
-use x86_64::structures::paging::{mapper::MapToError, Mapper};
-use x86_64::structures::paging::{FrameAllocator, Page, PageTableFlags, Size4KiB};
+use x86_64::structures::paging::{Mapper, FrameAllocator};
+use x86_64::structures::paging::{Page, PageTableFlags, Size4KiB};
 use linked_list_allocator::LockedHeap;
 
 pub const HEAP_START: usize = 0x114514000000;
@@ -15,9 +15,11 @@ fn alloc_error_handler(layout: alloc::alloc::Layout) -> ! {
 }
 
 pub fn init_heap(
-    mapper: &mut impl Mapper<Size4KiB>,
-    frame_allocator: &mut impl FrameAllocator<Size4KiB>,
-) -> Result<(), MapToError<Size4KiB>> {
+    (mapper, frame_allocator): &mut (
+        impl Mapper<Size4KiB>,
+        impl FrameAllocator<Size4KiB>,
+    ),
+) {
     let page_range = {
         let heap_start = VirtAddr::new(HEAP_START as u64);
         let heap_end = heap_start + HEAP_SIZE - 1u64;
@@ -29,14 +31,18 @@ pub fn init_heap(
     for page in page_range {
         let frame = frame_allocator
             .allocate_frame()
-            .ok_or(MapToError::FrameAllocationFailed)?;
+            .expect("Failed to allocate frame for heap!");
+        
         let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
-        unsafe { mapper.map_to(page, frame, flags, frame_allocator)?.flush() };
+        unsafe {
+            mapper
+                .map_to(page, frame, flags, frame_allocator)
+                .expect("Failed to map heap page to frame!")
+                .flush();
+        }
     }
 
     unsafe {
         ALLOCATOR.lock().init(HEAP_START, HEAP_SIZE);
     }
-
-    Ok(())
 }
