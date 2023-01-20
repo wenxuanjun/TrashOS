@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::structures::idt::PageFaultErrorCode;
 use x86_64::structures::idt::InterruptDescriptorTable;
+use x86_64::instructions::port::Port;
 
 pub const PIC0_OFFSET: u8 = 32;
 pub const PIC1_OFFSET: u8 = PIC0_OFFSET + 8;
@@ -24,7 +25,7 @@ lazy_static! {
 
         idt[InterruptIndex::Timer as usize].set_handler_fn(timer_interrupt);
         idt[InterruptIndex::ApicSpurious as usize].set_handler_fn(spurious_interrupt);
-        //idt[InterruptIndex::Keyboard as usize].set_handler_fn(keyboard_interrupt);
+        idt[InterruptIndex::Keyboard as usize].set_handler_fn(keyboard_interrupt);
 
         unsafe {
             idt.double_fault
@@ -45,16 +46,12 @@ extern "x86-interrupt" fn spurious_interrupt(_frame: InterruptStackFrame) {
     unsafe { crate::apic::LAPIC.lock().as_mut().unwrap().end_of_interrupt() };
 }
 
-/*
 extern "x86-interrupt" fn keyboard_interrupt(_frame: InterruptStackFrame) {
     let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
     crate::task::keyboard::add_scancode(scancode);
-
-    unsafe {
-        PICS.lock().notify_end_of_interrupt(InterruptIndex::Keyboard as u8);
-    }
-}*/
+    unsafe { crate::apic::LAPIC.lock().as_mut().unwrap().end_of_interrupt() };
+}
 
 extern "x86-interrupt" fn breakpoint(frame: InterruptStackFrame) {
     crate::debug!("Exception: Breakpoint\n{:#?}", frame);

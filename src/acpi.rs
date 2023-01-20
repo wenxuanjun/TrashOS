@@ -1,8 +1,8 @@
-use acpi::InterruptModel;
-use acpi::{AcpiHandler, AcpiTables, PhysicalMapping};
-use bootloader_api::BootInfo;
 use core::ptr::NonNull;
+use bootloader_api::BootInfo;
+use acpi::InterruptModel;
 use acpi::platform::interrupt::Apic;
+use acpi::{AcpiHandler, AcpiTables, PhysicalMapping};
 
 #[derive(Clone)]
 struct AcpiMemHandler {

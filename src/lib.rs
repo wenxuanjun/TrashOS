@@ -19,10 +19,10 @@ use bootloader_api::BootInfo;
 
 pub fn init(boot_info: &'static BootInfo) {
     gdt::init_gdt();
-    interrupts::IDT.load();
     printk::init(boot_info);
-    let mut memory = memory::init(boot_info);
-    allocator::init_heap(&mut memory);
+    interrupts::IDT.load();
+    memory::init(boot_info);
+    allocator::init_heap();
     let apic = acpi::init(boot_info);
     apic::init(boot_info, &apic);
 }
