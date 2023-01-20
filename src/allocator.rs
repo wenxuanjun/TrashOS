@@ -4,7 +4,7 @@ use x86_64::structures::paging::{Page, PageTableFlags, Size4KiB};
 use linked_list_allocator::LockedHeap;
 
 pub const HEAP_START: usize = 0x114514000000;
-pub const HEAP_SIZE: usize = 1024 * 1024;
+pub const HEAP_SIZE: usize = 4 * 1024 * 1024;
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
@@ -43,6 +43,6 @@ pub fn init_heap(
     }
 
     unsafe {
-        ALLOCATOR.lock().init(HEAP_START, HEAP_SIZE);
+        ALLOCATOR.lock().init(HEAP_START as *mut u8, HEAP_SIZE);
     }
 }

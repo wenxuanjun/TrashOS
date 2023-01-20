@@ -1,36 +1,30 @@
 use lazy_static::lazy_static;
-use pic8259::ChainedPics;
-use spin::Mutex;
-use x86_64::instructions::port::Port;
-use x86_64::structures::idt::InterruptDescriptorTable;
 use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::structures::idt::PageFaultErrorCode;
+use x86_64::structures::idt::InterruptDescriptorTable;
 
 pub const PIC0_OFFSET: u8 = 32;
 pub const PIC1_OFFSET: u8 = PIC0_OFFSET + 8;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
-pub enum IrqIndex {
-    Timer = 0xfe,
-    LapicErr = 0x31,
-    IpiWake = 0x40,
-    IpiTlb = 0x41,
-    IpiSwitch = 0x42,
-    IpiPit = 0x43,
-    Spurious = 0xff,
+pub enum InterruptIndex {
+    Timer = 32,
+    ApicError,
+    ApicSpurious,
+    Keyboard,
+    Syscall,
 }
-
-pub static PICS: Mutex<ChainedPics> =
-    Mutex::new(unsafe { ChainedPics::new(PIC0_OFFSET, PIC1_OFFSET) });
 
 lazy_static! {
     pub static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
         idt.breakpoint.set_handler_fn(breakpoint);
         idt.page_fault.set_handler_fn(page_fault);
-        idt[IrqIndex::Timer as usize].set_handler_fn(timer_interrupt);
-        //idt[IrqIndex::Keyboard as usize].set_handler_fn(keyboard_interrupt);
+
+        idt[InterruptIndex::Timer as usize].set_handler_fn(timer_interrupt);
+        idt[InterruptIndex::ApicSpurious as usize].set_handler_fn(spurious_interrupt);
+        //idt[InterruptIndex::Keyboard as usize].set_handler_fn(keyboard_interrupt);
 
         unsafe {
             idt.double_fault
@@ -43,9 +37,12 @@ lazy_static! {
 
 extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
     crate::print!(".");
-    /*unsafe {
-        PICS.lock().notify_end_of_interrupt(InterruptIndex::Timer as u8);
-    }*/
+    unsafe { crate::apic::LAPIC.lock().as_mut().unwrap().end_of_interrupt() };
+}
+
+extern "x86-interrupt" fn spurious_interrupt(_frame: InterruptStackFrame) {
+    crate::debug!("Received spurious interrupt");
+    unsafe { crate::apic::LAPIC.lock().as_mut().unwrap().end_of_interrupt() };
 }
 
 /*
@@ -60,7 +57,7 @@ extern "x86-interrupt" fn keyboard_interrupt(_frame: InterruptStackFrame) {
 }*/
 
 extern "x86-interrupt" fn breakpoint(frame: InterruptStackFrame) {
-    crate::println!("Exception: Breakpoint\n{:#?}", frame);
+    crate::debug!("Exception: Breakpoint\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, _error: u64) -> ! {
@@ -69,9 +66,9 @@ extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, _error: u64) 
 
 extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error: PageFaultErrorCode) {
     let fault_addr = x86_64::registers::control::Cr2::read();
-    crate::println!("Exception: Page Failt");
-    crate::println!("Accessed Address: {:?}", fault_addr);
-    crate::println!("Error Code: {:?}", error);
-    crate::println!("Stack Frame: {:#?}", frame);
+    crate::warn!("Exception: Page Fault");
+    crate::warn!("Accessed Address: {:?}", fault_addr);
+    crate::warn!("Error Code: {:?}", error);
+    crate::warn!("Stack Frame: {:#?}", frame);
     x86_64::instructions::hlt();
 }

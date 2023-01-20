@@ -12,7 +12,7 @@ const FONT_WIDTH: usize = get_raster_width(FONT_WEIGHT, FONT_HEIGHT);
 
 pub const DEFAULT_COLOR: Color = Color::White;
 
-pub static PRINTK: OnceCell<Mutex<Printk>> = OnceCell::uninit();
+static PRINTK: OnceCell<Mutex<Printk>> = OnceCell::uninit();
 
 pub fn init(boot_info: &'static BootInfo) {
     let boot_info = boot_info as *const BootInfo as *mut BootInfo;
@@ -40,7 +40,7 @@ pub struct Printk {
 #[derive(Debug)]
 pub enum Color {
     Red,
-    Orange,
+    Yellow,
     Green,
     Blue,
     White
@@ -50,7 +50,7 @@ impl Color {
     const fn get_color_rgb(&self) -> [u8; 3] {
         match self {
             Color::Red => [0xf4, 0x43, 0x36],
-            Color::Orange => [0xff, 0xc1, 0x07],
+            Color::Yellow => [0xff, 0xc1, 0x07],
             Color::Green => [0x4c, 0xaf, 0x50],
             Color::Blue => [0x03, 0xa9, 0xf4],
             Color::White => [0xff, 0xff, 0xff],
@@ -70,6 +70,10 @@ impl Color {
 }
 
 impl Printk {
+    pub fn change_level(&mut self, level: Color) {
+        self.level = level;
+    }
+
     pub fn draw_pixel(&mut self, x: usize, y: usize, intensity: u8) {
         let pixel_offset = y * self.info.stride + x;
         let bytes_per_pixel = self.info.bytes_per_pixel;
@@ -109,10 +113,6 @@ impl Printk {
                 self.row_position += rendered.width();
             }
         }
-    }
-
-    pub fn change_level(&mut self, level: Color) {
-        self.level = level;
     }
 }
 

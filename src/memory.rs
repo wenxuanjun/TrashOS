@@ -1,8 +1,8 @@
-use bootloader_api::BootInfo;
-use bootloader_api::info::{MemoryRegions, MemoryRegionKind};
 use x86_64::{PhysAddr, VirtAddr};
 use x86_64::structures::paging::{OffsetPageTable, PageTable};
 use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
+use bootloader_api::info::{MemoryRegions, MemoryRegionKind};
+use bootloader_api::BootInfo;
 
 pub fn init(boot_info: &'static BootInfo) -> (OffsetPageTable<'static>, BootInfoFrameAllocator) {
     let offset = boot_info.physical_memory_offset.clone();
