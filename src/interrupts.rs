@@ -76,9 +76,7 @@ extern "x86-interrupt" fn keyboard_interrupt(_frame: InterruptStackFrame) {
 }
 
 extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {
-    let mut port = Port::new(0x60);
-    let scancode: u8 = unsafe { port.read() };
-    print!("Mouse scancode: {:x}\n", scancode);
+    print!("Mouse interrupt!");
     unsafe { crate::apic::LAPIC.try_get().unwrap().lock().end_of_interrupt() }
 }
 

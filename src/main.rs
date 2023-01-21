@@ -5,8 +5,7 @@
 
 extern crate alloc;
 use core::panic::PanicInfo;
-use alloc::{boxed::Box, vec::Vec};
-use TrashOS::{println, task::keyboard};
+use TrashOS::{task::keyboard};
 use TrashOS::task::{Task, executor::Executor};
 use bootloader_api::{BootInfo, entry_point};
 use bootloader_api::config::{BootloaderConfig, Mapping};
