@@ -1,4 +1,3 @@
-use core::ops::DerefMut;
 use linked_list_allocator::LockedHeap;
 use x86_64::structures::paging::{Mapper, FrameAllocator};
 use x86_64::structures::paging::{Page, PageTableFlags};
@@ -35,7 +34,7 @@ pub fn init_heap() {
         let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
         unsafe {
             mapper
-                .map_to(page, frame, flags, frame_allocator.deref_mut())
+                .map_to(page, frame, flags, &mut *frame_allocator)
                 .expect("Failed to map heap page to frame!")
                 .flush();
         }

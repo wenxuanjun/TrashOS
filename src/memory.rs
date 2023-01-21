@@ -1,16 +1,16 @@
-use conquer_once::spin::OnceCell;
 use bootloader_api::BootInfo;
-use bootloader_api::info::{MemoryRegions, MemoryRegionKind};
-use x86_64::{PhysAddr, VirtAddr};
-use x86_64::structures::paging::{OffsetPageTable, PageTable};
-use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
+use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
 use spin::Mutex;
-use core::ops::DerefMut;
-use x86_64::structures::paging::{Mapper};
+use conquer_once::spin::OnceCell;
+use x86_64::structures::paging::Mapper;
+use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
+use x86_64::structures::paging::{OffsetPageTable, PageTable};
 use x86_64::structures::paging::{Page, PageTableFlags};
+use x86_64::{PhysAddr, VirtAddr};
 
 pub static MAPPER: OnceCell<Mutex<OffsetPageTable>> = OnceCell::uninit();
 pub static FRAME_ALLOCATOR: OnceCell<Mutex<BootInfoFrameAllocator>> = OnceCell::uninit();
+pub static PHYS_MEM_OFFSET: OnceCell<VirtAddr> = OnceCell::uninit();
 
 pub fn init(boot_info: &'static BootInfo) {
     let offset = boot_info.physical_memory_offset.clone();
@@ -19,8 +19,9 @@ pub fn init(boot_info: &'static BootInfo) {
         let page_table = active_page_table(phys_mem_offset);
         let mapper = OffsetPageTable::new(page_table, phys_mem_offset);
         let frame_allocator = BootInfoFrameAllocator::init(&boot_info.memory_regions);
-        MAPPER.try_init_once(|| Mutex::new(mapper)).unwrap();
-        FRAME_ALLOCATOR.try_init_once(|| Mutex::new(frame_allocator)).unwrap(); 
+        MAPPER.init_once(|| Mutex::new(mapper));
+        FRAME_ALLOCATOR.init_once(|| Mutex::new(frame_allocator));
+        PHYS_MEM_OFFSET.init_once(|| phys_mem_offset);
     }
 }
 
@@ -30,21 +31,24 @@ pub fn map_physical_to_virtual(phys_addr: u64, virt_addr: u64) {
     let mut mapper = MAPPER.get().unwrap().lock();
     let mut frame_allocator = FRAME_ALLOCATOR.get().unwrap().lock();
     unsafe {
-        mapper.map_to(
-            Page::<Size4KiB>::containing_address(virt_addr),
-            PhysFrame::containing_address(phys_addr),
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-            frame_allocator.deref_mut(),
-        ).unwrap().flush();
+        mapper
+            .map_to(
+                Page::<Size4KiB>::containing_address(virt_addr),
+                PhysFrame::containing_address(phys_addr),
+                PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+                &mut *frame_allocator,
+            )
+            .unwrap()
+            .flush();
     }
 }
 
 unsafe fn active_page_table(phys_mem_offset: VirtAddr) -> &'static mut PageTable {
     use x86_64::registers::control::Cr3;
     let (page_table_frame, _) = Cr3::read();
-    let phys = page_table_frame.start_address();
-    let virt = phys_mem_offset + phys.as_u64();
-    let page_table_ptr: *mut PageTable = virt.as_mut_ptr();
+    let physical_address = page_table_frame.start_address();
+    let virtual_address = phys_mem_offset + physical_address.as_u64();
+    let page_table_ptr: *mut PageTable = virtual_address.as_mut_ptr();
     return &mut *page_table_ptr;
 }
 

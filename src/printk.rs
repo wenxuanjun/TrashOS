@@ -88,6 +88,17 @@ impl Printk {
         self.column_position += FONT_HEIGHT as usize;
     }
 
+    fn back_space(&mut self) {
+        if self.row_position > 0 {
+            self.row_position -= FONT_WIDTH;
+        }
+        for y in 0..FONT_HEIGHT as usize {
+            for x in 0..FONT_WIDTH {
+                self.draw_pixel(self.row_position + x, self.column_position + y, 0);
+            }
+        }
+    }
+
     fn clear_screen(&mut self) {
         self.buffer.fill(0);
         self.row_position = 0;
@@ -97,6 +108,7 @@ impl Printk {
     pub fn write_byte(&mut self, byte: char) {
         match byte {
             '\n' => self.new_line(),
+            '\x08' => self.back_space(),
             _ => {
                 if self.row_position >= self.info.width - FONT_WIDTH {
                     self.new_line();

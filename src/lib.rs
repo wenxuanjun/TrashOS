@@ -24,5 +24,5 @@ pub fn init(boot_info: &'static BootInfo) {
     memory::init(boot_info);
     allocator::init_heap();
     let apic = acpi::init(boot_info);
-    apic::init(boot_info, &apic);
+    apic::init(&apic);
 }

@@ -22,15 +22,6 @@ entry_point!(main, config = &BOOTLOADER_CONFIG);
 fn main(boot_info: &'static mut BootInfo) -> ! {
     TrashOS::init(boot_info);
 
-    let heap_value = Box::new(41);
-    println!("The heap start at {:p}", heap_value);
-
-    let mut vec = Vec::new();
-    for i in 0..500 { vec.push(i); }
-    println!("Now test the vec is at {:p}", vec.as_slice());
-
-    println!("min0911_ TQL%%%!");
-
     let mut executor = Executor::new();
     executor.spawn(Task::new(keyboard::print_keypresses()));
     executor.run();
