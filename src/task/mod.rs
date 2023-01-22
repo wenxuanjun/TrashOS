@@ -3,7 +3,6 @@ use core::task::{Context, Poll};
 use core::{future::Future, pin::Pin};
 use core::sync::atomic::{AtomicU64, Ordering};
 
-pub mod keyboard;
 pub mod executor;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

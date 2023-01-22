@@ -1,10 +1,11 @@
-use core::pin::Pin;
-use core::task::{Context, Poll};
-use crossbeam_queue::ArrayQueue;
 use conquer_once::spin::OnceCell;
 use futures_util::task::AtomicWaker;
+use core::{pin::Pin, task::{Context, Poll}};
+use crossbeam_queue::{ArrayQueue, PopError};
 use futures_util::{stream::Stream, StreamExt};
 use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
+
+const SCANCODE_QUEUE_SIZE: usize = 128;
 
 static WAKER: AtomicWaker = AtomicWaker::new();
 static SCANCODE_QUEUE: OnceCell<ArrayQueue<u8>> = OnceCell::uninit();
@@ -14,7 +15,7 @@ pub struct ScancodeStream;
 impl ScancodeStream {
     pub fn new() -> Self {
         SCANCODE_QUEUE
-            .try_init_once(|| ArrayQueue::new(100))
+            .try_init_once(|| ArrayQueue::new(SCANCODE_QUEUE_SIZE))
             .expect("ScancodeStream::new should only be called once!");
         ScancodeStream {}
     }
@@ -36,7 +37,7 @@ impl Stream for ScancodeStream {
                 WAKER.take();
                 Poll::Ready(Some(scancode))
             }
-            Err(crossbeam_queue::PopError) => Poll::Pending,
+            Err(PopError) => Poll::Pending,
         }
     }
 }

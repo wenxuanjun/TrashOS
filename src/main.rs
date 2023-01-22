@@ -5,7 +5,6 @@
 
 extern crate alloc;
 use core::panic::PanicInfo;
-use TrashOS::{task::keyboard};
 use TrashOS::task::{Task, executor::Executor};
 use bootloader_api::{BootInfo, entry_point};
 use bootloader_api::config::{BootloaderConfig, Mapping};
@@ -22,7 +21,7 @@ fn main(boot_info: &'static mut BootInfo) -> ! {
     TrashOS::init(boot_info);
 
     let mut executor = Executor::new();
-    executor.spawn(Task::new(keyboard::print_keypresses()));
+    executor.spawn(Task::new(TrashOS::keyboard::print_keypresses()));
     executor.run();
 }
 

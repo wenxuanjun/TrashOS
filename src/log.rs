@@ -26,7 +26,6 @@ impl LogLevel {
     }
 }
 
-
 pub fn log(level: LogLevel, args: core::fmt::Arguments) {
     crate::printk::change_print_level(level.color());
     crate::printk::_print(format_args!("[{}] {}\n", level.name(), args));

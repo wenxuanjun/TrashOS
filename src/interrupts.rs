@@ -71,7 +71,7 @@ extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
 extern "x86-interrupt" fn keyboard_interrupt(_frame: InterruptStackFrame) {
     let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
-    crate::task::keyboard::add_scancode(scancode);
+    crate::keyboard::add_scancode(scancode);
     unsafe { crate::apic::LAPIC.try_get().unwrap().lock().end_of_interrupt() }
 }
 

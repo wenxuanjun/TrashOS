@@ -10,7 +10,7 @@ use x86_64::{PhysAddr, VirtAddr};
 
 pub static MAPPER: OnceCell<Mutex<OffsetPageTable>> = OnceCell::uninit();
 pub static FRAME_ALLOCATOR: OnceCell<Mutex<BootInfoFrameAllocator>> = OnceCell::uninit();
-pub static PHYS_MEM_OFFSET: OnceCell<VirtAddr> = OnceCell::uninit();
+pub static PHYS_MEM_OFFSET: OnceCell<u64> = OnceCell::uninit();
 
 pub fn init(boot_info: &'static BootInfo) {
     let offset = boot_info.physical_memory_offset.clone();
@@ -21,7 +21,7 @@ pub fn init(boot_info: &'static BootInfo) {
         let frame_allocator = BootInfoFrameAllocator::init(&boot_info.memory_regions);
         MAPPER.init_once(|| Mutex::new(mapper));
         FRAME_ALLOCATOR.init_once(|| Mutex::new(frame_allocator));
-        PHYS_MEM_OFFSET.init_once(|| phys_mem_offset);
+        PHYS_MEM_OFFSET.init_once(|| phys_mem_offset.as_u64());
     }
 }
 

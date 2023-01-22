@@ -19,13 +19,15 @@ pub fn init(boot_info: &'static BootInfo) {
     let boot_info_mut = unsafe {&mut *(boot_info)};
     let frame_buffer = boot_info_mut.framebuffer.as_mut().unwrap();
 
-    PRINTK.try_init_once(|| Mutex::new(Printk {
+    let printk = Printk {
         row_position: 0,
         column_position: 0,
         info: frame_buffer.info().clone(),
         buffer: frame_buffer.buffer_mut(),
         level: DEFAULT_COLOR,
-    })).unwrap();
+    };
+
+    PRINTK.try_init_once(|| Mutex::new(printk)).unwrap();
     PRINTK.try_get().unwrap().lock().clear_screen();
 }
 
@@ -106,32 +108,30 @@ impl Printk {
     }
 
     pub fn write_byte(&mut self, byte: char) {
-        match byte {
-            '\n' => self.new_line(),
-            '\x08' => self.back_space(),
-            _ => {
-                if self.row_position >= self.info.width - FONT_WIDTH {
-                    self.new_line();
-                }
-                if self.column_position >= self.info.height {
-                    self.clear_screen();
-                }
-                let rendered = get_raster(byte, FONT_WEIGHT, FONT_HEIGHT).unwrap();
-                for (y, lines) in rendered.raster().iter().enumerate() {
-                    for (x, column) in lines.iter().enumerate() {
-                        self.draw_pixel(self.row_position + x, self.column_position + y, *column);
-                    }
-                }
-                self.row_position += rendered.width();
+        if self.row_position >= self.info.width - FONT_WIDTH {
+            self.new_line();
+        }
+        if self.column_position >= self.info.height {
+            self.clear_screen();
+        }
+        let rendered = get_raster(byte, FONT_WEIGHT, FONT_HEIGHT).unwrap();
+        for (y, lines) in rendered.raster().iter().enumerate() {
+            for (x, column) in lines.iter().enumerate() {
+                self.draw_pixel(self.row_position + x, self.column_position + y, *column);
             }
         }
+        self.row_position += rendered.width();
     }
 }
 
 impl fmt::Write for Printk {
     fn write_str(&mut self, string: &str) -> fmt::Result {
         for byte in string.chars() {
-            self.write_byte(byte)
+            match byte {
+                '\n' => self.new_line(),
+                '\x08' => self.back_space(),
+                _ => self.write_byte(byte)
+            }
         }
         Ok(())
     }

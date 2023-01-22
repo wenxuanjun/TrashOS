@@ -13,6 +13,7 @@ pub mod log;
 pub mod acpi;
 pub mod apic;
 pub mod task;
+pub mod keyboard;
 
 extern crate alloc;
 use bootloader_api::BootInfo;

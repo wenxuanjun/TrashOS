@@ -13,7 +13,7 @@ impl AcpiHandler for AcpiMemHandler {
         physical_address: usize,
         size: usize,
     ) -> PhysicalMapping<Self, T> {
-        let phys_mem_offset = crate::memory::PHYS_MEM_OFFSET.try_get().unwrap().as_u64();
+        let phys_mem_offset = crate::memory::PHYS_MEM_OFFSET.try_get().unwrap();
         let virtual_address = phys_mem_offset + physical_address as u64;
         let notnull_address = NonNull::new_unchecked(virtual_address as *mut T);
         PhysicalMapping::new(physical_address, notnull_address, size, size, self.clone())

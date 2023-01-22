@@ -1,7 +1,7 @@
 use spin::Mutex;
 use conquer_once::spin::OnceCell;
 use acpi::platform::interrupt::Apic;
-use x86_64::{instructions::port::Port};
+use x86_64::instructions::port::Port;
 use x2apic::lapic::{LocalApic, LocalApicBuilder};
 use x2apic::ioapic::{IoApic, IrqFlags, IrqMode, RedirectionTableEntry};
 use crate::interrupts::InterruptIndex;
@@ -35,7 +35,7 @@ unsafe fn disable_pic() {
 
 unsafe fn init_apic(apic: &Apic) {
     let physical_address = apic.local_apic_address;
-    let phys_mem_offset = crate::memory::PHYS_MEM_OFFSET.try_get().unwrap().as_u64();
+    let phys_mem_offset = crate::memory::PHYS_MEM_OFFSET.try_get().unwrap();
     let virtual_address = phys_mem_offset + physical_address;
     crate::memory::map_physical_to_virtual(physical_address, virtual_address);
 
@@ -54,7 +54,7 @@ unsafe fn init_apic(apic: &Apic) {
 
 unsafe fn init_ioapic(apic: &Apic) {
     let physical_address = apic.io_apics[0].address as u64;
-    let phys_mem_offset = crate::memory::PHYS_MEM_OFFSET.try_get().unwrap().as_u64();
+    let phys_mem_offset = crate::memory::PHYS_MEM_OFFSET.try_get().unwrap();
     let virtual_address = phys_mem_offset + physical_address;
     crate::memory::map_physical_to_virtual(physical_address, virtual_address);
 
@@ -63,11 +63,11 @@ unsafe fn init_ioapic(apic: &Apic) {
     crate::info!("IoApic ID: {}, Version: {}", ioapic.id(), ioapic.version());
     IOAPIC.init_once(|| Mutex::new(ioapic));
 
-    io_apic_add_entry(IrqVector::Keyboard, InterruptIndex::Keyboard);
-    io_apic_add_entry(IrqVector::Mouse, InterruptIndex::Mouse);
+    ioapic_add_entry(IrqVector::Keyboard, InterruptIndex::Keyboard);
+    ioapic_add_entry(IrqVector::Mouse, InterruptIndex::Mouse);
 }
 
-unsafe fn io_apic_add_entry(irq: IrqVector, vector: InterruptIndex) {
+unsafe fn ioapic_add_entry(irq: IrqVector, vector: InterruptIndex) {
     let lapic = LAPIC.try_get().unwrap().lock();
     let mut io_apic = IOAPIC.try_get().unwrap().lock();
     let mut entry = RedirectionTableEntry::default();
