@@ -1,12 +1,10 @@
 use bootloader_api::BootInfo;
 use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
-use spin::Mutex;
-use conquer_once::spin::OnceCell;
-use x86_64::structures::paging::Mapper;
-use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
-use x86_64::structures::paging::{OffsetPageTable, PageTable};
-use x86_64::structures::paging::{Page, PageTableFlags};
 use x86_64::{PhysAddr, VirtAddr};
+use x86_64::structures::paging::{OffsetPageTable, PageTable};
+use x86_64::structures::paging::{FrameAllocator, PhysFrame, Size4KiB};
+use conquer_once::spin::OnceCell;
+use spin::Mutex;
 
 pub static MAPPER: OnceCell<Mutex<OffsetPageTable>> = OnceCell::uninit();
 pub static FRAME_ALLOCATOR: OnceCell<Mutex<BootInfoFrameAllocator>> = OnceCell::uninit();
@@ -25,22 +23,35 @@ pub fn init(boot_info: &'static BootInfo) {
     }
 }
 
-pub fn map_physical_to_virtual(phys_addr: u64, virt_addr: u64) {
-    let phys_addr = PhysAddr::new(phys_addr);
-    let virt_addr = VirtAddr::new(virt_addr);
-    let mut mapper = MAPPER.get().unwrap().lock();
-    let mut frame_allocator = FRAME_ALLOCATOR.get().unwrap().lock();
-    unsafe {
-        mapper
-            .map_to(
-                Page::<Size4KiB>::containing_address(virt_addr),
-                PhysFrame::containing_address(phys_addr),
+#[macro_export]
+macro_rules! map_physical_to_virtual {
+    ($phys_addr:expr, $virt_addr:expr) => {
+        use x86_64::{PhysAddr, VirtAddr};
+        use x86_64::structures::paging::{Mapper, mapper::MapToError};
+        use x86_64::structures::paging::{Page, Size4KiB, PageTableFlags, PhysFrame};
+        let result = unsafe {
+            $crate::memory::MAPPER.try_get().unwrap().lock().map_to(
+                Page::<Size4KiB>::containing_address(VirtAddr::new($virt_addr)),
+                PhysFrame::containing_address(PhysAddr::new($phys_addr)),
                 PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
-                &mut *frame_allocator,
+                &mut *$crate::memory::FRAME_ALLOCATOR.try_get().unwrap().lock(),
             )
-            .unwrap()
-            .flush();
-    }
+        };
+        match result {
+            Ok(flush) => flush.flush(),
+            Err(err) => match err {
+                MapToError::FrameAllocationFailed => {
+                    panic!("Failed to allocate frame!");
+                }
+                MapToError::PageAlreadyMapped(frame) => {
+                    crate::debug!("Already mapped to frame: {:?}", frame);
+                }
+                MapToError::ParentEntryHugePage => {
+                    crate::debug!("Already mapped to huge page!");
+                }
+            },
+        };
+    };
 }
 
 unsafe fn active_page_table(phys_mem_offset: VirtAddr) -> &'static mut PageTable {

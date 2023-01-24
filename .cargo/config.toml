@@ -2,4 +2,4 @@
 bindeps = true
 
 [alias]
-bin = "run --package boot --"
+bin = "run --release --package boot --"

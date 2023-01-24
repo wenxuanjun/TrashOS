@@ -14,6 +14,7 @@ pub mod acpi;
 pub mod apic;
 pub mod task;
 pub mod keyboard;
+pub mod mouse;
 
 extern crate alloc;
 use bootloader_api::BootInfo;
@@ -26,4 +27,5 @@ pub fn init(boot_info: &'static BootInfo) {
     allocator::init_heap();
     let apic = acpi::init(boot_info);
     apic::init(&apic);
+    mouse::init();
 }

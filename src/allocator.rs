@@ -23,8 +23,8 @@ pub fn init_heap() {
         Page::range_inclusive(heap_start_page, heap_end_page)
     };
 
-    let mut mapper = MAPPER.get().unwrap().lock();
-    let mut frame_allocator = FRAME_ALLOCATOR.get().unwrap().lock();
+    let mut mapper = MAPPER.try_get().unwrap().lock();
+    let mut frame_allocator = FRAME_ALLOCATOR.try_get().unwrap().lock();
 
     for page in page_range {
         let frame = frame_allocator

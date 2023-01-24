@@ -6,8 +6,6 @@ use x2apic::lapic::{LocalApic, LocalApicBuilder};
 use x2apic::ioapic::{IoApic, IrqFlags, IrqMode, RedirectionTableEntry};
 use crate::interrupts::InterruptIndex;
 
-const IOAPIC_INTERRUPT_INDEX_OFFSET: u8 = 64;
-
 pub static LAPIC: OnceCell<Mutex<LocalApic>> = OnceCell::uninit();
 pub static IOAPIC: OnceCell<Mutex<IoApic>> = OnceCell::uninit();
 
@@ -37,7 +35,7 @@ unsafe fn init_apic(apic: &Apic) {
     let physical_address = apic.local_apic_address;
     let phys_mem_offset = crate::memory::PHYS_MEM_OFFSET.try_get().unwrap();
     let virtual_address = phys_mem_offset + physical_address;
-    crate::memory::map_physical_to_virtual(physical_address, virtual_address);
+    crate::map_physical_to_virtual!(physical_address, virtual_address);
 
     let mut lapic = LocalApicBuilder::new()
         .timer_vector(InterruptIndex::Timer as usize)
@@ -46,7 +44,6 @@ unsafe fn init_apic(apic: &Apic) {
         .set_xapic_base(virtual_address)
         .build()
         .unwrap_or_else(|err| panic!("Failed to build local APIC: {:#?}", err));
-    crate::info!("Local APIC ID: {}, Version: {}", lapic.id(), lapic.version());
 
     lapic.enable();
     LAPIC.init_once(|| Mutex::new(lapic));
@@ -56,11 +53,10 @@ unsafe fn init_ioapic(apic: &Apic) {
     let physical_address = apic.io_apics[0].address as u64;
     let phys_mem_offset = crate::memory::PHYS_MEM_OFFSET.try_get().unwrap();
     let virtual_address = phys_mem_offset + physical_address;
-    crate::memory::map_physical_to_virtual(physical_address, virtual_address);
+    crate::map_physical_to_virtual!(physical_address, virtual_address);
 
     let mut ioapic = IoApic::new(virtual_address);
-    ioapic.init(IOAPIC_INTERRUPT_INDEX_OFFSET);
-    crate::info!("IoApic ID: {}, Version: {}", ioapic.id(), ioapic.version());
+    ioapic.init(crate::interrupts::IOAPIC_INTERRUPT_INDEX_OFFSET);
     IOAPIC.init_once(|| Mutex::new(ioapic));
 
     ioapic_add_entry(IrqVector::Keyboard, InterruptIndex::Keyboard);

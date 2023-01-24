@@ -1,5 +1,8 @@
 use crate::printk::Color;
 
+pub const LOG_LEVEL: LogLevel = LogLevel::Debug;
+
+#[derive(PartialOrd, PartialEq)]
 pub enum LogLevel {
     Debug,
     Info,
@@ -27,26 +30,42 @@ impl LogLevel {
 }
 
 pub fn log(level: LogLevel, args: core::fmt::Arguments) {
-    crate::printk::change_print_level(level.color());
-    crate::printk::_print(format_args!("[{}] {}\n", level.name(), args));
+    if level >= LOG_LEVEL {
+        crate::printk::change_print_level(level.color());
+        crate::printk::_print(format_args!("[{}] {}\n", level.name(), args));
+    }
+}
+
+#[macro_export]
+macro_rules! log {
+    ($level:expr, $arg:expr) => (
+        if $level >= $crate::log::LOG_LEVEL {
+            $crate::printk::change_print_level($level.color());
+            if $level == $crate::log::LogLevel::Debug {
+                $crate::printk::_print(format_args!("[{}] {}:{} {}\n", $level.name(), file!(), line!(), $arg));
+            } else {
+                $crate::printk::_print(format_args!("[{}] {}\n", $level.name(), $arg));
+            }
+        }
+    );
 }
 
 #[macro_export]
 macro_rules! debug {
-    ($($arg:tt)*) => ($crate::log::log($crate::log::LogLevel::Debug, format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::log!($crate::log::LogLevel::Debug, format_args!($($arg)*)));
 }
 
 #[macro_export]
 macro_rules! info {
-    ($($arg:tt)*) => ($crate::log::log($crate::log::LogLevel::Info, format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::log!($crate::log::LogLevel::Info, format_args!($($arg)*)));
 }
 
 #[macro_export]
 macro_rules! warn {
-    ($($arg:tt)*) => ($crate::log::log($crate::log::LogLevel::Warn, format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::log!($crate::log::LogLevel::Warn, format_args!($($arg)*)));
 }
 
 #[macro_export]
 macro_rules! error {
-    ($($arg:tt)*) => ($crate::log::log($crate::log::LogLevel::Error, format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::log!($crate::log::LogLevel::Error, format_args!($($arg)*)));
 }

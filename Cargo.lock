@@ -7,6 +7,7 @@ name = "TrashOS"
 version = "0.1.0"
 dependencies = [
  "acpi",
+ "bitflags",
  "bootloader_api",
  "conquer-once",
  "crossbeam-queue",
@@ -16,6 +17,7 @@ dependencies = [
  "noto-sans-mono-bitmap",
  "pc-keyboard",
  "pic8259",
+ "ps2-mouse",
  "spin 0.9.4",
  "uart_16550",
  "volatile",
@@ -549,6 +551,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ef7d57beacfaf2d8aee5937dab7b7f28de3cb8b1828479bb5de2a7106f2bae2"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "ps2-mouse"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7a1ea62fa77d411155c765d1ba9d0286b8af83a93cda6109c295a2bde1e04a0"
+dependencies = [
+ "bitflags",
+ "x86_64",
 ]
 
 [[package]]
