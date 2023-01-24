@@ -33,7 +33,7 @@ enum MouseAdditionalFlags {
 #[derive(Debug)]
 enum MouseType {
     Standard = 0,
-    Scroll = 3,
+    OnlyScroll = 3,
     FiveButton = 4,
 }
 
@@ -120,6 +120,8 @@ impl Mouse {
                     0b0100_0001 => MouseAdditionalFlags::FirstButton,
                     0b0111_1111 => MouseAdditionalFlags::SecondButton,
                     0b0000_0001 => MouseAdditionalFlags::ScrollUp,
+                    // First is for OnlyScroll and second is for FiveButton
+                    0b1111_1111 => MouseAdditionalFlags::ScrollDown,
                     0b0000_1111 => MouseAdditionalFlags::ScrollDown,
                     _ => MouseAdditionalFlags::None,
                 };
@@ -148,7 +150,7 @@ impl Mouse {
         self.send_command(0xf3)?.send_command(80)?;
         self.send_command(0xf2 as u8)?;
         if self.read_data_port()? == 0x3 {
-            self.mouse_type = MouseType::Scroll;
+            self.mouse_type = MouseType::OnlyScroll;
         }
         Ok(self)
     }

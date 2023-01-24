@@ -1,4 +1,4 @@
-use linked_list_allocator::LockedHeap;
+use slab_allocator_rs::LockedHeap;
 use x86_64::structures::paging::{Mapper, FrameAllocator};
 use x86_64::structures::paging::{Page, PageTableFlags};
 use crate::memory::{MAPPER, FRAME_ALLOCATOR};
@@ -41,6 +41,6 @@ pub fn init_heap() {
     }
 
     unsafe {
-        ALLOCATOR.lock().init(HEAP_START as *mut u8, HEAP_SIZE);
+        ALLOCATOR.init(HEAP_START, HEAP_SIZE);
     }
 }
