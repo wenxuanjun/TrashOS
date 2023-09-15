@@ -2,4 +2,5 @@
 bindeps = true
 
 [alias]
-bin = "run --release --package boot --"
+debug = "run --package builder --"
+release = "run --release --package builder --"

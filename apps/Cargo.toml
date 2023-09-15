@@ -1,0 +1,15 @@
+[package]
+name = "apps"
+version = "0.1.0"
+edition = "2021"
+forced-target = "x86_64-unknown-none"
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+lto = true
+opt-level = "z"
+panic = "abort"
+strip = "symbols"
+codegen-units = 1

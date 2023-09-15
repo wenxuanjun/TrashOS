@@ -1,23 +1,20 @@
 use spin::Mutex;
 use core::fmt::{self, Write};
-use bootloader_api::BootInfo;
 use bootloader_api::info::{FrameBufferInfo, PixelFormat};
 use noto_sans_mono_bitmap::{FontWeight, RasterHeight};
 use noto_sans_mono_bitmap::{get_raster, get_raster_width};
 use conquer_once::spin::OnceCell;
+use bootloader_api::info::{FrameBuffer, Optional};
 
 const FONT_WEIGHT: FontWeight = FontWeight::Regular;
-const FONT_HEIGHT: RasterHeight = RasterHeight::Size20;
 const FONT_WIDTH: usize = get_raster_width(FONT_WEIGHT, FONT_HEIGHT);
-
+const FONT_HEIGHT: RasterHeight = RasterHeight::Size20;
 pub const DEFAULT_COLOR: Color = Color::White;
 
 static PRINTK: OnceCell<Mutex<Printk>> = OnceCell::uninit();
 
-pub fn init(boot_info: &'static BootInfo) {
-    let boot_info = boot_info as *const BootInfo as *mut BootInfo;
-    let boot_info_mut = unsafe {&mut *(boot_info)};
-    let frame_buffer = boot_info_mut.framebuffer.as_mut().unwrap();
+pub fn init(boot_info: &'static mut Optional<FrameBuffer>) {
+    let frame_buffer = boot_info.as_mut().unwrap();
 
     let printk = Printk {
         row_position: 0,
@@ -31,11 +28,11 @@ pub fn init(boot_info: &'static BootInfo) {
     PRINTK.try_get().unwrap().lock().clear_screen();
 }
 
-pub struct Printk {
+pub struct Printk<'a> {
     row_position: usize,
     column_position: usize,
     info: FrameBufferInfo,
-    buffer: &'static mut [u8],
+    buffer: &'a mut [u8],
     level: Color,
 }
 
@@ -71,7 +68,7 @@ impl Color {
     }
 }
 
-impl Printk {
+impl<'a> Printk<'a> {
     pub fn change_level(&mut self, level: Color) {
         self.level = level;
     }
@@ -124,7 +121,7 @@ impl Printk {
     }
 }
 
-impl fmt::Write for Printk {
+impl<'a> fmt::Write for Printk<'a> {
     fn write_str(&mut self, string: &str) -> fmt::Result {
         for byte in string.chars() {
             match byte {

@@ -4,10 +4,9 @@
 #![feature(abi_x86_interrupt)]
 
 extern crate alloc;
-use core::panic::PanicInfo;
-use TrashOS::task::{Task, executor::Executor};
-use bootloader_api::{BootInfo, entry_point};
 use bootloader_api::config::{BootloaderConfig, Mapping};
+use bootloader_api::{entry_point, BootInfo};
+use core::panic::PanicInfo;
 
 pub static BOOTLOADER_CONFIG: BootloaderConfig = {
     let mut config = BootloaderConfig::new_default();
@@ -17,16 +16,38 @@ pub static BOOTLOADER_CONFIG: BootloaderConfig = {
 
 entry_point!(main, config = &BOOTLOADER_CONFIG);
 
+fn print_thread1() {
+    loop {
+        TrashOS::print!("[KernelThread1!]");
+        x86_64::instructions::hlt();
+    }
+}
+
+fn print_thread2() {
+    loop {
+        TrashOS::print!("[KernelThread2!]");
+        x86_64::instructions::hlt();
+    }
+}
+
 fn main(boot_info: &'static mut BootInfo) -> ! {
     TrashOS::init(boot_info);
 
-    let mut executor = Executor::new();
-    executor.spawn(Task::new(TrashOS::keyboard::print_keypresses()));
-    executor.run();
+    TrashOS::task::Thread::new_kernel_thread(print_thread1);
+    TrashOS::task::Thread::new_kernel_thread(print_thread2);
+    TrashOS::task::Process::new_user_process("Hello1", include_bytes!("../apps/src/hello")).unwrap();
+    TrashOS::task::Process::new_user_process("Hello2", include_bytes!("../apps/src/hello2")).unwrap();
+    x86_64::instructions::interrupts::enable();
+
+    loop {
+        x86_64::instructions::hlt();
+    }
 }
 
 #[panic_handler]
-fn panic(_panic_info: &PanicInfo<'_>) -> ! {
-    TrashOS::error!("{}", _panic_info);
-    loop { x86_64::instructions::hlt(); }
+fn panic(panic_info: &PanicInfo<'_>) -> ! {
+    TrashOS::error!("{}", panic_info);
+    loop {
+        x86_64::instructions::hlt();
+    }
 }

@@ -20,7 +20,7 @@ $ rustup component add llvm-tools-preview
 Then you can build the TrashOS by running following command:
 
 ```bash
-$ cargo bin
+$ cargo debug
 ```
 
 ### Running
@@ -28,7 +28,7 @@ $ cargo bin
 You can run the TrashOS by running following command:
 
 ```bash
-$ cargo bin --boot
+$ cargo debug --boot
 ```
 
 ### TODO

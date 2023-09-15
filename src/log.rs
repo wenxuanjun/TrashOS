@@ -29,20 +29,13 @@ impl LogLevel {
     }
 }
 
-pub fn log(level: LogLevel, args: core::fmt::Arguments) {
-    if level >= LOG_LEVEL {
-        crate::printk::change_print_level(level.color());
-        crate::printk::_print(format_args!("[{}] {}\n", level.name(), args));
-    }
-}
-
 #[macro_export]
 macro_rules! log {
     ($level:expr, $arg:expr) => (
         if $level >= $crate::log::LOG_LEVEL {
             $crate::printk::change_print_level($level.color());
             if $level == $crate::log::LogLevel::Debug {
-                $crate::printk::_print(format_args!("[{}] {}:{} {}\n", $level.name(), file!(), line!(), $arg));
+                $crate::printk::_print(format_args!("[{}] {}, {}:{}\n", $level.name(), $arg, file!(), line!()));
             } else {
                 $crate::printk::_print(format_args!("[{}] {}\n", $level.name(), $arg));
             }

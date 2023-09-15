@@ -2,30 +2,40 @@
 #![allow(non_snake_case)]
 #![feature(abi_x86_interrupt)]
 #![feature(alloc_error_handler)]
+#![feature(naked_functions)]
+#![feature(asm_const)]
+#![feature(variant_count)]
+#![feature(allocator_api)]
 
-pub mod gdt;
-pub mod interrupts;
-pub mod memory;
-pub mod allocator;
-pub mod serial;
-pub mod printk;
-pub mod log;
 pub mod acpi;
 pub mod apic;
+pub mod device;
+pub mod gdt;
+pub mod interrupts;
+pub mod log;
+pub mod memory;
+pub mod printk;
 pub mod task;
-pub mod keyboard;
-pub mod mouse;
 
 extern crate alloc;
 use bootloader_api::BootInfo;
 
-pub fn init(boot_info: &'static BootInfo) {
+pub fn init(boot_info: &'static mut BootInfo) {
+    let BootInfo {
+        framebuffer,
+        physical_memory_offset,
+        memory_regions,
+        rsdp_addr,
+        ..
+    } = boot_info;
+
+    printk::init(framebuffer);
     gdt::init_gdt();
-    printk::init(boot_info);
     interrupts::IDT.load();
-    memory::init(boot_info);
-    allocator::init_heap();
-    let apic = acpi::init(boot_info);
-    apic::init(&apic);
-    mouse::init();
+    memory::init(physical_memory_offset, memory_regions);
+    acpi::init(*rsdp_addr);
+    apic::init();
+    device::mouse::init();
+    task::syscall::init();
+    task::scheduler::init();
 }

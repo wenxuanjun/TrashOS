@@ -1,10 +1,10 @@
-use spin::Mutex;
-use conquer_once::spin::OnceCell;
-use acpi::platform::interrupt::Apic;
-use x86_64::instructions::port::Port;
-use x2apic::lapic::{LocalApic, LocalApicBuilder};
-use x2apic::ioapic::{IoApic, IrqFlags, IrqMode, RedirectionTableEntry};
 use crate::interrupts::InterruptIndex;
+use crate::memory::MemoryManager;
+use conquer_once::spin::OnceCell;
+use spin::Mutex;
+use x2apic::ioapic::{IoApic, IrqFlags, IrqMode, RedirectionTableEntry};
+use x2apic::lapic::{LocalApic, LocalApicBuilder};
+use x86_64::{instructions::port::Port, PhysAddr, VirtAddr};
 
 pub static LAPIC: OnceCell<Mutex<LocalApic>> = OnceCell::uninit();
 pub static IOAPIC: OnceCell<Mutex<IoApic>> = OnceCell::uninit();
@@ -16,14 +16,13 @@ pub enum IrqVector {
     Mouse = 12,
 }
 
-pub fn init(apic: &Apic) {
+pub fn init() {
     unsafe {
         disable_pic();
-        init_apic(apic);
-        init_ioapic(apic);
+        init_apic();
+        init_ioapic();
     };
     crate::info!("APIC initialized successfully!");
-    x86_64::instructions::interrupts::enable();
 }
 
 unsafe fn disable_pic() {
@@ -31,17 +30,18 @@ unsafe fn disable_pic() {
     Port::<u8>::new(0x21).write(0xff);
 }
 
-unsafe fn init_apic(apic: &Apic) {
-    let physical_address = apic.local_apic_address;
-    let phys_mem_offset = crate::memory::PHYS_MEM_OFFSET.try_get().unwrap();
-    let virtual_address = phys_mem_offset + physical_address;
-    crate::map_physical_to_virtual!(physical_address, virtual_address);
+unsafe fn init_apic() {
+    let acpi = crate::acpi::ACPI.try_get().unwrap();
+    let physical_address = PhysAddr::new(acpi.apic_info.local_apic_address);
+    let physical_memory_offset = crate::memory::PHYSICAL_MEMORY_OFFSET.try_get().unwrap();
+    let virtual_address = VirtAddr::new(physical_address.as_u64() + physical_memory_offset);
+    <MemoryManager>::map_exist(physical_address, virtual_address).unwrap();
 
     let mut lapic = LocalApicBuilder::new()
         .timer_vector(InterruptIndex::Timer as usize)
         .error_vector(InterruptIndex::ApicError as usize)
         .spurious_vector(InterruptIndex::ApicSpurious as usize)
-        .set_xapic_base(virtual_address)
+        .set_xapic_base(virtual_address.as_u64())
         .build()
         .unwrap_or_else(|err| panic!("Failed to build local APIC: {:#?}", err));
 
@@ -49,13 +49,14 @@ unsafe fn init_apic(apic: &Apic) {
     LAPIC.init_once(|| Mutex::new(lapic));
 }
 
-unsafe fn init_ioapic(apic: &Apic) {
-    let physical_address = apic.io_apics[0].address as u64;
-    let phys_mem_offset = crate::memory::PHYS_MEM_OFFSET.try_get().unwrap();
-    let virtual_address = phys_mem_offset + physical_address;
-    crate::map_physical_to_virtual!(physical_address, virtual_address);
+unsafe fn init_ioapic() {
+    let acpi = crate::acpi::ACPI.try_get().unwrap();
+    let physical_address = PhysAddr::new(acpi.apic_info.io_apics[0].address as u64);
+    let physical_memory_offset = crate::memory::PHYSICAL_MEMORY_OFFSET.try_get().unwrap();
+    let virtual_address = VirtAddr::new(physical_address.as_u64() + physical_memory_offset);
+    <MemoryManager>::map_exist(physical_address, virtual_address).unwrap();
 
-    let mut ioapic = IoApic::new(virtual_address);
+    let mut ioapic = IoApic::new(virtual_address.as_u64());
     ioapic.init(crate::interrupts::IOAPIC_INTERRUPT_INDEX_OFFSET);
     IOAPIC.init_once(|| Mutex::new(ioapic));
 
