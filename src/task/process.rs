@@ -72,11 +72,13 @@ impl ProcessBinary {
             for segment in elf_file.segments() {
                 let segment_start = VirtAddr::new(segment.address() as u64);
                 let segment_end = segment_start + segment.size() as u64 - 1u64;
+
                 let flags = PageTableFlags::PRESENT
                     | PageTableFlags::WRITABLE
                     | PageTableFlags::USER_ACCESSIBLE;
                 <MemoryManager>::alloc_range(segment_start, segment_end, flags, page_table)
                     .unwrap();
+
                 if let Ok(data) = segment.data() {
                     let dest_ptr = segment_start.as_u64() as *mut u8;
                     for (index, value) in data.iter().enumerate() {

@@ -34,7 +34,10 @@ $ cargo debug --boot
 ### TODO
 
 - [x] APIC support
-- [ ] Preemptive multitasking
+- [x] Preemptive multitasking
 - [ ] Memory management
+- [ ] Inter process communication
+- [ ] Double buffering
+- [ ] PCI support
 - [ ] AHCI support
-- [ ] Filesystem support 
+- [ ] Filesystem support

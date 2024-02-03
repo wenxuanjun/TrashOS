@@ -12,9 +12,9 @@ fn panic(_info: &PanicInfo) -> ! {
 pub unsafe extern "sysv64" fn _start() -> ! {
     let mut counter = 0;
     loop {
-        let mut buf = [0u8; 10];
+        let mut buf = [0u8; 6];
         let mut cnt = counter;
-        for i in (0..13).rev() {
+        for i in (0..6).rev() {
             buf[i] = (cnt % 10 + 48) as u8;
             cnt /= 10;
         }
