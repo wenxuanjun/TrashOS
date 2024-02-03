@@ -32,8 +32,9 @@ pub enum ThreadState {
     Terminated,
 }
 
+#[allow(dead_code)]
 pub struct Thread {
-    pub id: ThreadId,
+    id: ThreadId,
     state: ThreadState,
     pub user_stack: ThreadStack,
     pub context: Context,
@@ -41,53 +42,51 @@ pub struct Thread {
 }
 
 impl Thread {
-    pub fn new_kernel_thread(function: fn()) {
-        let process = scheduler::KERNEL_PROCESS.try_get().unwrap();
-
-        let mut thread = {
-            let thread = Thread {
-                id: ThreadId::new(),
-                state: ThreadState::Ready,
-                user_stack: ThreadStack::new(StackType::User),
-                context: Context::default(),
-                process: process.clone(),
-            };
-
-            Box::new(thread)
+    pub fn new(process: Arc<RwLock<Box<Process>>>) -> Box<Self> {
+        let thread = Thread {
+            id: ThreadId::new(),
+            state: ThreadState::Ready,
+            user_stack: ThreadStack::new(StackType::Kernel),
+            context: Context::default(),
+            process,
         };
 
+        Box::new(thread)
+    }
+
+    pub fn new_init_thread() -> Arc<RwLock<Box<Self>>> {
+        let process = scheduler::KERNEL_PROCESS.try_get().unwrap();
+        let thread = Self::new(process.clone());
+        let thread = Arc::new(RwLock::new(thread));
+        process.write().threads.push_back(thread.clone());
+
+        thread
+    }
+
+    pub fn new_kernel_thread(function: fn()) {
+        let process = scheduler::KERNEL_PROCESS.try_get().unwrap();
+        let mut thread = Self::new(process.clone());
         thread.context.init(
             function as usize,
             thread.user_stack.end_address(),
             Selectors::get_kernel_segments(),
         );
-
         let thread = Arc::new(RwLock::new(thread));
         process.write().threads.push_back(thread);
     }
 
     pub fn new_user_thread(process: Arc<RwLock<Box<Process>>>, entry_point: usize) {
-        let mut thread = Box::new(Thread {
-            id: ThreadId::new(),
-            state: ThreadState::Ready,
-            user_stack: ThreadStack::new(StackType::User),
-            context: Context::default(),
-            process: process.clone(),
-        });
+        let mut thread = Self::new(process.clone());
 
         const USER_STACK_SIZE: usize = 64 * 1024;
         let user_stack_end = VirtAddr::new(0x00007fffffffffff);
         let user_stack_start = user_stack_end - USER_STACK_SIZE as u64 + 1u64;
 
-        let flags =
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
-
         let mut process = process.write();
-
         <MemoryManager>::alloc_range(
             user_stack_start,
             user_stack_end,
-            flags,
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
             &mut process.page_table,
         )
         .unwrap();

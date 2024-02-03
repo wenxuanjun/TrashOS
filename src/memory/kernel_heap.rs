@@ -1,11 +1,12 @@
-use crate::memory::MemoryManager;
 use alloc::alloc::Layout;
 use linked_list_allocator::LockedHeap;
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
+use crate::memory::MemoryManager;
+
 pub const HEAP_START: usize = 0x114514000000;
-pub const HEAP_SIZE: usize = 4 * 1024 * 1024;
+pub const HEAP_SIZE: usize = 1 * 1024 * 1024;
 
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();

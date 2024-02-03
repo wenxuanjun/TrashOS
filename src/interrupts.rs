@@ -1,10 +1,13 @@
 use spin::Lazy;
-use x86_64::VirtAddr;
 use x86_64::instructions::port::PortReadOnly;
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::InterruptDescriptorTable;
 use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::structures::idt::PageFaultErrorCode;
+use x86_64::VirtAddr;
+
+use crate::task::scheduler::SCHEDULER;
+use crate::gdt::GENERAL_INTERRUPT_IST_INDEX;
 
 const INTERRUPT_INDEX_OFFSET: u8 = 32;
 pub const IOAPIC_INTERRUPT_INDEX_OFFSET: u8 = 32;
@@ -30,83 +33,74 @@ pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     unsafe {
         idt[InterruptIndex::Timer as usize]
             .set_handler_fn(timer_interrupt)
-            .set_stack_index(crate::gdt::TIMER_INTERRUPT_IST_INDEX);
-
+            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
         idt.page_fault
             .set_handler_fn(page_fault)
-            .set_stack_index(crate::gdt::GENERAL_INTERRUPT_IST_INDEX);
+            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
         idt.general_protection_fault
             .set_handler_fn(general_protection_fault)
-            .set_stack_index(crate::gdt::GENERAL_INTERRUPT_IST_INDEX);
+            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
         idt.double_fault
             .set_handler_fn(double_fault)
-            .set_stack_index(crate::gdt::GENERAL_INTERRUPT_IST_INDEX);
-        idt[InterruptIndex::Keyboard as usize]
-            .set_handler_fn(keyboard_interrupt)
-            .set_stack_index(crate::gdt::GENERAL_INTERRUPT_IST_INDEX);
-        idt[InterruptIndex::Mouse as usize]
-            .set_handler_fn(mouse_interrupt)
-            .set_stack_index(crate::gdt::GENERAL_INTERRUPT_IST_INDEX);
+            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
         idt.segment_not_present
             .set_handler_fn(segment_not_present)
-            .set_stack_index(crate::gdt::GENERAL_INTERRUPT_IST_INDEX);
+            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
         idt.invalid_opcode
             .set_handler_fn(invalid_opcode)
-            .set_stack_index(crate::gdt::GENERAL_INTERRUPT_IST_INDEX);
+            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
+        idt[InterruptIndex::Keyboard as usize]
+            .set_handler_fn(keyboard_interrupt)
+            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
+        idt[InterruptIndex::Mouse as usize]
+            .set_handler_fn(mouse_interrupt)
+            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
     }
     return idt;
 });
 
 #[naked]
 extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
+    fn timer_handler(context: VirtAddr) -> VirtAddr {
+        crate::apic::end_of_interrupt();
+        SCHEDULER.try_get().unwrap().write().schedule(context)
+    }
+
     unsafe {
         core::arch::asm!(
             "cli",
             crate::push_context!(),
             "mov rdi, rsp",
             "call {timer_handler}",
-            "cmp rax, 0",
-            "je 1f",
             "mov rsp, rax",
-            "1:",
             crate::pop_context!(),
             "sti",
             "iretq",
-            timer_handler = sym timer_interrupt_handler,
+            timer_handler = sym timer_handler,
             options(noreturn)
         );
     }
 }
 
-extern "C" fn timer_interrupt_handler(context_address: VirtAddr) -> VirtAddr {
-    let lapic = crate::apic::LAPIC.try_get().unwrap();
-    unsafe { lapic.lock().end_of_interrupt() }
-
-    let mut scheduer = crate::task::scheduler::SCHEDULER.write();
-    scheduer.schedule(context_address).unwrap_or(VirtAddr::zero())
+extern "x86-interrupt" fn lapic_error(_frame: InterruptStackFrame) {
+    crate::error!("Local APIC error!");
+    crate::apic::end_of_interrupt();
 }
 
 extern "x86-interrupt" fn spurious_interrupt(_frame: InterruptStackFrame) {
     crate::debug!("Received spurious interrupt!");
-    let lapic = crate::apic::LAPIC.try_get().unwrap();
-    unsafe { lapic.lock().end_of_interrupt() }
+    crate::apic::end_of_interrupt();
 }
 
-extern "x86-interrupt" fn lapic_error(_frame: InterruptStackFrame) {
-    crate::error!("Local APIC error!");
-    let lapic = crate::apic::LAPIC.try_get().unwrap();
-    unsafe { lapic.lock().end_of_interrupt() }
-}
-
-extern "x86-interrupt" fn segment_not_present(frame: InterruptStackFrame, error: u64) {
+extern "x86-interrupt" fn segment_not_present(frame: InterruptStackFrame, error_code: u64) {
     crate::error!("Exception: Segment Not Present\n{:#?}", frame);
-    crate::error!("Error Code: {:#x}", error);
+    crate::error!("Error Code: {:#x}", error_code);
     panic!("Unrecoverable fault occured, halting!");
 }
 
-extern "x86-interrupt" fn general_protection_fault(frame: InterruptStackFrame, error: u64) {
+extern "x86-interrupt" fn general_protection_fault(frame: InterruptStackFrame, error_code: u64) {
     crate::error!("Exception: General Protection Fault\n{:#?}", frame);
-    crate::error!("Error Code: {:#x}", error);
+    crate::error!("Error Code: {:#x}", error_code);
     x86_64::instructions::hlt();
 }
 
@@ -119,31 +113,29 @@ extern "x86-interrupt" fn breakpoint(frame: InterruptStackFrame) {
     crate::debug!("Exception: Breakpoint\n{:#?}", frame);
 }
 
-extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, error: u64) -> ! {
+extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, error_code: u64) -> ! {
     crate::error!("Exception: Double Fault\n{:#?}", frame);
-    crate::error!("Error Code: {:#x}", error);
+    crate::error!("Error Code: {:#x}", error_code);
     panic!("Unrecoverable fault occured, halting!");
 }
 
 extern "x86-interrupt" fn keyboard_interrupt(_frame: InterruptStackFrame) {
     let scancode: u8 = unsafe { PortReadOnly::new(0x60).read() };
     crate::device::keyboard::add_scancode(scancode);
-    let lapic = crate::apic::LAPIC.try_get().unwrap();
-    unsafe { lapic.lock().end_of_interrupt() }
+    crate::apic::end_of_interrupt();
 }
 
 extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {
     let packet = unsafe { PortReadOnly::new(0x60).read() };
     let mouse = crate::device::mouse::MOUSE.try_get().unwrap();
     mouse.lock().process_packet(packet);
-    let lapic = crate::apic::LAPIC.try_get().unwrap();
-    unsafe { lapic.lock().end_of_interrupt() }
+    crate::apic::end_of_interrupt();
 }
 
-extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error: PageFaultErrorCode) {
+extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error_code: PageFaultErrorCode) {
     let fault_addr = Cr2::read();
     crate::warn!("Exception: Page Fault\n{:#?}", frame);
-    crate::warn!("Error Code: {:#x}", error);
+    crate::warn!("Error Code: {:#x}", error_code);
     crate::warn!("Fault Address: {:#x}", fault_addr);
     x86_64::instructions::hlt();
 }

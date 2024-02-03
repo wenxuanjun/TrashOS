@@ -1,8 +1,18 @@
+cargo-features = ["per-package-target"]
+
 [package]
 name = "apps"
 version = "0.1.0"
 edition = "2021"
 forced-target = "x86_64-unknown-none"
+
+[[bin]]
+name = "hello"
+path = "src/hello.rs"
+
+[[bin]]
+name = "counter"
+path = "src/counter.rs"
 
 [profile.dev]
 panic = "abort"

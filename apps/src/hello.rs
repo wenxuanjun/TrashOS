@@ -11,7 +11,7 @@ fn panic(_info: &PanicInfo) -> ! {
 #[no_mangle]
 pub unsafe extern "sysv64" fn _start() -> ! {
     loop {
-        let hello = "Hello 1!";
+        let hello = "Hello!";
         unsafe {
             core::arch::asm!(
                 "syscall",

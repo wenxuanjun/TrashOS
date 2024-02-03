@@ -3,10 +3,12 @@ use x86_64::VirtAddr;
 
 const KERNEL_STACK_SIZE: usize = 4 * 1024;
 const USER_STACK_INIT_SIZE: usize = 16 * 1024;
+const INIT_THREAD_STACK_SIZE: usize = 0;
 
 pub enum StackType {
     Kernel,
     User,
+    Empty,
 }
 
 #[derive(Debug)]
@@ -21,6 +23,7 @@ impl ThreadStack {
         let size = match stack_type {
             StackType::Kernel => KERNEL_STACK_SIZE,
             StackType::User => USER_STACK_INIT_SIZE,
+            StackType::Empty => INIT_THREAD_STACK_SIZE,
         };
 
         let inner = Vec::with_capacity(size);

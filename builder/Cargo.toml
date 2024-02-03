@@ -4,8 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bootloader = "0.11"
 ovmf-prebuilt = "0.1.0-alpha.1"
+
+[dependencies.bootloader]
+version = "0.11"
+features = ["uefi"]
+default-features = false
 
 [dependencies.TrashOS]
 path = ".."

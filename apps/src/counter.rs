@@ -10,20 +10,27 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub unsafe extern "sysv64" fn _start() -> ! {
+    let mut counter = 0;
     loop {
-        let hello = "Hello 2!";
+        let mut buf = [0u8; 10];
+        let mut cnt = counter;
+        for i in (0..13).rev() {
+            buf[i] = (cnt % 10 + 48) as u8;
+            cnt /= 10;
+        }
         unsafe {
             core::arch::asm!(
                 "syscall",
                 in("rax") 1,
-                in("rdi") hello.as_ptr(),
-                in("rsi") hello.len(),
+                in("rdi") &buf,
+                in("rsi") buf.len(),
                 in("rdx") 0,
                 in("r10") 0,
                 in("r8") 0,
                 in("r9") 0,
             );
         }
+        counter += 1;
         for _ in 1..100000 {
             unsafe {
                 core::arch::asm!("nop");

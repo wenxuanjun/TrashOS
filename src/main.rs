@@ -35,9 +35,11 @@ fn main(boot_info: &'static mut BootInfo) -> ! {
 
     TrashOS::task::Thread::new_kernel_thread(print_thread1);
     TrashOS::task::Thread::new_kernel_thread(print_thread2);
-    TrashOS::task::Process::new_user_process("Hello1", include_bytes!("../apps/src/hello")).unwrap();
-    TrashOS::task::Process::new_user_process("Hello2", include_bytes!("../apps/src/hello2")).unwrap();
-    x86_64::instructions::interrupts::enable();
+
+    let hello_raw_elf = include_bytes!("../target/x86_64-unknown-none/debug/hello");
+    let counter_raw_elf = include_bytes!("../target/x86_64-unknown-none/debug/counter");
+    TrashOS::task::Process::new_user_process("Hello", hello_raw_elf).unwrap();
+    TrashOS::task::Process::new_user_process("Counter", counter_raw_elf).unwrap();
 
     loop {
         x86_64::instructions::hlt();

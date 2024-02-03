@@ -1,4 +1,4 @@
-use super::frame_allocator::BootInfoFrameAllocator;
+use super::BootInfoFrameAllocator;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::*;
 use x86_64::structures::paging::page::PageRangeInclusive;
@@ -123,10 +123,6 @@ impl GeneralPageTable {
             inner: offset_page_table,
             physical_address,
         }
-    }
-
-    pub fn is_current(&self) -> bool {
-        self.physical_address == Cr3::read().0.start_address()
     }
 
     pub unsafe fn switch(&self) {

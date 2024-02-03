@@ -15,6 +15,7 @@ pub mod interrupts;
 pub mod log;
 pub mod memory;
 pub mod printk;
+pub mod syscall;
 pub mod task;
 
 extern crate alloc;
@@ -36,6 +37,6 @@ pub fn init(boot_info: &'static mut BootInfo) {
     acpi::init(*rsdp_addr);
     apic::init();
     device::mouse::init();
-    task::syscall::init();
+    syscall::init();
     task::scheduler::init();
 }

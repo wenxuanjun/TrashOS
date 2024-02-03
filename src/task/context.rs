@@ -51,7 +51,7 @@ impl Context {
     }
 
     #[inline]
-    pub fn from_address(address: VirtAddr) -> Context {
+    pub fn copy_from_address(address: VirtAddr) -> Context {
         unsafe { *&mut *(address.as_u64() as *mut Context) }
     }
 }

@@ -7,8 +7,6 @@ use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
 
 pub const GENERAL_INTERRUPT_IST_INDEX: u16 = 0;
-pub const TIMER_INTERRUPT_IST_INDEX: u16 = 1;
-pub const SYSCALL_TEMPSTACK_IST_INDEX: u16 = 2;
 
 pub fn init_gdt() {
     let descriptor_table = &GDT.0;
@@ -70,12 +68,9 @@ pub static TSS: Lazy<TaskStateSegment> = Lazy::new(|| {
     tss.interrupt_stack_table[GENERAL_INTERRUPT_IST_INDEX as usize] = {
         const STACK_SIZE: usize = 4096 * 5;
         static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
-        let stack_start = VirtAddr::from_ptr(unsafe { &STACK });
+        let stack_start = VirtAddr::from_ptr(unsafe { core::ptr::addr_of!(STACK) });
         stack_start + STACK_SIZE
     };
-
-    tss.interrupt_stack_table[TIMER_INTERRUPT_IST_INDEX as usize] =
-        tss.interrupt_stack_table[GENERAL_INTERRUPT_IST_INDEX as usize];
 
     tss
 });

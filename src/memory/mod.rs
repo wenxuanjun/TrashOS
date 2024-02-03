@@ -1,10 +1,10 @@
 use bootloader_api::info::{MemoryRegions, Optional};
 use conquer_once::spin::OnceCell;
-use frame_allocator::BootInfoFrameAllocator;
+use frame::BootInfoFrameAllocator;
 use spin::Mutex;
 use x86_64::VirtAddr;
 
-mod frame_allocator;
+mod frame;
 mod kernel_heap;
 mod manager;
 mod page_table;
@@ -16,10 +16,7 @@ pub static PHYSICAL_MEMORY_OFFSET: OnceCell<u64> = OnceCell::uninit();
 pub static KERNEL_PAGE_TABLE: OnceCell<Mutex<GeneralPageTable>> = OnceCell::uninit();
 pub static FRAME_ALLOCATOR: OnceCell<Mutex<BootInfoFrameAllocator>> = OnceCell::uninit();
 
-pub fn init(
-    physical_memory_offset: &Optional<u64>,
-    memory_regions: &'static MemoryRegions,
-) {
+pub fn init(physical_memory_offset: &Optional<u64>, memory_regions: &'static MemoryRegions) {
     let physical_memory_offset = physical_memory_offset.into_option().unwrap();
     PHYSICAL_MEMORY_OFFSET.init_once(|| physical_memory_offset);
 
@@ -43,4 +40,23 @@ pub fn create_page_table_from_kernel() -> GeneralPageTable {
             VirtAddr::new(*physical_memory_offset),
         )
     }
+}
+
+#[macro_export]
+macro_rules! with_page_table {
+    ($page_table:ident, $inner_code:block) => {
+        x86_64::instructions::interrupts::without_interrupts(|| {
+            unsafe {
+                $page_table.switch();
+            }
+            $inner_code
+            unsafe {
+                crate::memory::KERNEL_PAGE_TABLE
+                    .try_get()
+                    .unwrap()
+                    .lock()
+                    .switch();
+            }
+        });
+    };
 }

@@ -1,7 +1,6 @@
 pub mod context;
 pub mod scheduler;
 pub mod stack;
-pub mod syscall;
 pub mod thread;
 pub mod process;
 
