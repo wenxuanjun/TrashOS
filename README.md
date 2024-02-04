@@ -38,6 +38,7 @@ $ cargo debug --boot
 - [ ] Memory management
 - [ ] Inter process communication
 - [ ] Double buffering
+- [ ] MLFQ scheduler
 - [ ] PCI support
 - [ ] AHCI support
 - [ ] Filesystem support

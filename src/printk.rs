@@ -1,10 +1,10 @@
-use spin::Mutex;
-use core::fmt::{self, Write};
-use bootloader_api::info::{FrameBufferInfo, PixelFormat};
-use noto_sans_mono_bitmap::{FontWeight, RasterHeight};
-use noto_sans_mono_bitmap::{get_raster, get_raster_width};
-use conquer_once::spin::OnceCell;
 use bootloader_api::info::{FrameBuffer, Optional};
+use bootloader_api::info::{FrameBufferInfo, PixelFormat};
+use conquer_once::spin::OnceCell;
+use core::fmt::{self, Write};
+use noto_sans_mono_bitmap::{get_raster, get_raster_width};
+use noto_sans_mono_bitmap::{FontWeight, RasterHeight};
+use spin::Mutex;
 
 const FONT_WEIGHT: FontWeight = FontWeight::Regular;
 const FONT_WIDTH: usize = get_raster_width(FONT_WEIGHT, FONT_HEIGHT);
@@ -42,7 +42,7 @@ pub enum Color {
     Yellow,
     Green,
     Blue,
-    White
+    White,
 }
 
 impl Color {
@@ -78,7 +78,9 @@ impl<'a> Printk<'a> {
         let bytes_per_pixel = self.info.bytes_per_pixel;
         let byte_offset = pixel_offset * bytes_per_pixel;
         let write_range = byte_offset..(byte_offset + bytes_per_pixel);
-        let color = self.level.get_color_pixel(self.info.pixel_format, intensity);
+        let color = self
+            .level
+            .get_color_pixel(self.info.pixel_format, intensity);
         self.buffer[write_range].copy_from_slice(&color[..bytes_per_pixel]);
     }
 
@@ -127,7 +129,7 @@ impl<'a> fmt::Write for Printk<'a> {
             match byte {
                 '\n' => self.new_line(),
                 '\x08' => self.back_space(),
-                _ => self.write_byte(byte)
+                _ => self.write_byte(byte),
             }
         }
         Ok(())

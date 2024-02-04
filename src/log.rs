@@ -31,16 +31,22 @@ impl LogLevel {
 
 #[macro_export]
 macro_rules! log {
-    ($level:expr, $arg:expr) => (
+    ($level:expr, $arg:expr) => {
         if $level >= $crate::log::LOG_LEVEL {
             $crate::printk::change_print_level($level.color());
             if $level == $crate::log::LogLevel::Debug {
-                $crate::printk::_print(format_args!("[{}] {}, {}:{}\n", $level.name(), $arg, file!(), line!()));
+                $crate::printk::_print(format_args!(
+                    "[{}] {}, {}:{}\n",
+                    $level.name(),
+                    $arg,
+                    file!(),
+                    line!()
+                ));
             } else {
                 $crate::printk::_print(format_args!("[{}] {}\n", $level.name(), $arg));
             }
         }
-    );
+    };
 }
 
 #[macro_export]

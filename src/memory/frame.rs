@@ -1,6 +1,6 @@
 use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
-use x86_64::structures::paging::{FrameAllocator, PageSize, PhysFrame};
 use x86_64::structures::paging::Size4KiB;
+use x86_64::structures::paging::{FrameAllocator, PageSize, PhysFrame};
 use x86_64::PhysAddr;
 
 pub struct BootInfoFrameAllocator {

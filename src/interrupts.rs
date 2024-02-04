@@ -6,8 +6,8 @@ use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::structures::idt::PageFaultErrorCode;
 use x86_64::VirtAddr;
 
-use crate::task::scheduler::SCHEDULER;
 use crate::gdt::GENERAL_INTERRUPT_IST_INDEX;
+use crate::task::scheduler::SCHEDULER;
 
 const INTERRUPT_INDEX_OFFSET: u8 = 32;
 pub const IOAPIC_INTERRUPT_INDEX_OFFSET: u8 = 32;
@@ -20,7 +20,6 @@ pub enum InterruptIndex {
     ApicSpurious,
     Keyboard,
     Mouse,
-    Syscall,
 }
 
 pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {

@@ -1,7 +1,7 @@
 use conquer_once::spin::OnceCell;
 use spin::Mutex;
 use x2apic::ioapic::{IoApic, IrqFlags, IrqMode, RedirectionTableEntry};
-use x2apic::lapic::{LocalApic, LocalApicBuilder, xapic_base};
+use x2apic::lapic::{LocalApic, LocalApicBuilder};
 use x86_64::{instructions::port::Port, PhysAddr, VirtAddr};
 
 use crate::interrupts::InterruptIndex;
@@ -29,7 +29,9 @@ pub fn init() {
 #[inline]
 pub fn end_of_interrupt() {
     let lapic = LAPIC.try_get().unwrap();
-    unsafe { lapic.lock().end_of_interrupt(); }
+    unsafe {
+        lapic.lock().end_of_interrupt();
+    }
 }
 
 unsafe fn disable_pic() {
@@ -38,7 +40,8 @@ unsafe fn disable_pic() {
 }
 
 unsafe fn init_apic() {
-    let physical_address = unsafe { PhysAddr::new(xapic_base()) };
+    let acpi = crate::acpi::ACPI.try_get().unwrap();
+    let physical_address = PhysAddr::new(acpi.apic_info.local_apic_address as u64);
     let physical_memory_offset = crate::memory::PHYSICAL_MEMORY_OFFSET.try_get().unwrap();
     let virtual_address = VirtAddr::new(physical_address.as_u64() + physical_memory_offset);
     <MemoryManager>::map_exist(physical_address, virtual_address).unwrap();

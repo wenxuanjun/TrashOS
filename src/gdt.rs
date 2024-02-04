@@ -8,7 +8,7 @@ use x86_64::VirtAddr;
 
 pub const GENERAL_INTERRUPT_IST_INDEX: u16 = 0;
 
-pub fn init_gdt() {
+pub fn init() {
     let descriptor_table = &GDT.0;
     descriptor_table.load();
 

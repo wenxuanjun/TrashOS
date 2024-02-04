@@ -16,25 +16,9 @@ pub static BOOTLOADER_CONFIG: BootloaderConfig = {
 
 entry_point!(main, config = &BOOTLOADER_CONFIG);
 
-fn print_thread1() {
-    loop {
-        TrashOS::print!("[KernelThread1!]");
-        x86_64::instructions::hlt();
-    }
-}
-
-fn print_thread2() {
-    loop {
-        TrashOS::print!("[KernelThread2!]");
-        x86_64::instructions::hlt();
-    }
-}
-
 fn main(boot_info: &'static mut BootInfo) -> ! {
     TrashOS::init(boot_info);
-
-    TrashOS::task::Thread::new_kernel_thread(print_thread1);
-    TrashOS::task::Thread::new_kernel_thread(print_thread2);
+    TrashOS::task::Thread::new_kernel_thread(TrashOS::device::keyboard::print_keypresses);
 
     let hello_raw_elf = include_bytes!("../target/x86_64-unknown-none/debug/hello");
     let counter_raw_elf = include_bytes!("../target/x86_64-unknown-none/debug/counter");

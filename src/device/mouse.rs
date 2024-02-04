@@ -9,18 +9,17 @@ pub static MOUSE: OnceCell<Mutex<Mouse>> = OnceCell::uninit();
 
 pub fn init() {
     MOUSE.init_once(|| Mutex::new(Mouse::new()));
-    let mut mouse = MOUSE.try_get().unwrap().lock();
-    match unsafe { mouse.init() } {
-        Ok(_) => {
-            crate::debug!("Mouse Type: {:?}", mouse.mouse_type);
-            crate::info!("Mouse initialized successfully!");
-        }
-        Err(error_message) => crate::warn!("{}", error_message),
-    }
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        let mut mouse = MOUSE.try_get().unwrap().lock();
+        unsafe { mouse.init().unwrap() };
+        mouse.set_complete_handler(mouse_complete_handler);
+        crate::debug!("Mouse Type: {:?}", mouse.mouse_type);
+    });
+    crate::info!("Mouse initialized successfully!");
 }
 
-fn mouse_complete_handler(_mouse_state: MouseState) {
-    //crate::println!("{:?}", mouse_state);
+fn mouse_complete_handler(mouse_state: MouseState) {
+    crate::println!("{:?}", mouse_state);
 }
 
 bitflags! {
@@ -57,9 +56,10 @@ enum MouseType {
 pub struct Mouse {
     command_port: Port<u8>,
     data_port: Port<u8>,
-    current_packet_index: u8,
+    current_packet_index: u16,
     current_state: MouseState,
     mouse_type: MouseType,
+    complete_handler: Option<fn(MouseState)>,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -89,6 +89,7 @@ impl Mouse {
             current_packet_index: 0,
             current_state: MouseState::new(),
             mouse_type: MouseType::Standard,
+            complete_handler: None,
         }
     }
 
@@ -142,9 +143,16 @@ impl Mouse {
             _ => unreachable!(),
         }
         if self.current_packet_index % modulo == modulo - 1 {
-            mouse_complete_handler(self.current_state);
+            if self.complete_handler.is_some() {
+                (self.complete_handler.unwrap())(self.current_state);
+            }
         }
         self.current_packet_index += 1;
+        self.current_packet_index %= modulo;
+    }
+
+    pub fn set_complete_handler(&mut self, handler: fn(MouseState)) {
+        self.complete_handler = Some(handler);
     }
 
     unsafe fn enable_packet_streaming(&mut self) -> Result<&mut Self, &'static str> {

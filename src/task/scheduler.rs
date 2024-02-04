@@ -4,6 +4,7 @@ use alloc::sync::Arc;
 use conquer_once::spin::OnceCell;
 use spin::RwLock;
 use x86_64::instructions::interrupts;
+use x86_64::registers::control::Cr3;
 use x86_64::VirtAddr;
 
 use super::context::Context;
@@ -69,13 +70,14 @@ impl Scheduler {
             let mut thread = self.current_thread.write();
             thread.context = Context::copy_from_address(context);
         }
-
         self.current_thread = self.get_next();
         let thread = self.current_thread.read();
         let page_table = &thread.process.read().page_table;
 
         interrupts::without_interrupts(|| unsafe {
-            page_table.switch();
+            if page_table.physical_address != Cr3::read().0.start_address() {
+                page_table.switch();
+            }
         });
 
         thread.context.address()

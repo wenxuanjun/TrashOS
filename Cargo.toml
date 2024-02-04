@@ -20,23 +20,18 @@ strip = "symbols"
 codegen-units = 1
 
 [dependencies]
-x86_64 = "0.14.10"
-spin = "0.9.4"
+x86_64 = "0.14.11"
+spin = "0.9.8"
 uart_16550 = "0.3.0"
 pc-keyboard = "0.7.0"
-bootloader_api = "0.11.4"
+bootloader_api = "0.11.6"
 acpi = "5.0.0"
-x2apic = "0.4.1"
-bitflags = "2.3.3"
+x2apic = "0.4.3"
+bitflags = "2.4.2"
 linked_list_allocator = "0.10.5"
 
 [dependencies.crossbeam-queue]
-version = "0.3.8"
-features = ["alloc"]
-default-features = false
-
-[dependencies.futures-util]
-version = "0.3.4"
+version = "0.3.11"
 features = ["alloc"]
 default-features = false
 
@@ -45,7 +40,7 @@ version = "0.4.0"
 default-features = false
 
 [dependencies.object]
-version = "0.32.0"
+version = "0.32.2"
 features = ["read"]
 default-features = false
 

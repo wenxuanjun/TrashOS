@@ -5,8 +5,8 @@ use x86_64::structures::paging::{Mapper, PageTableFlags};
 use x86_64::structures::paging::{Page, PageSize, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
 
-use super::GeneralPageTable;
 use super::BootInfoFrameAllocator;
+use super::GeneralPageTable;
 
 pub struct MemoryManager<S: PageSize = Size4KiB> {
     size: PhantomData<S>,
@@ -61,8 +61,7 @@ impl<S: PageSize> MemoryManager<S> {
         flags: PageTableFlags,
         page_table: &mut GeneralPageTable,
         frame_allocator: &mut BootInfoFrameAllocator,
-    )
-    where
+    ) where
         GeneralPageTable: Mapper<S>,
         BootInfoFrameAllocator: FrameAllocator<S>,
     {

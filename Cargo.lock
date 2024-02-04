@@ -11,7 +11,6 @@ dependencies = [
  "bootloader_api",
  "conquer-once",
  "crossbeam-queue",
- "futures-util",
  "linked_list_allocator",
  "noto-sans-mono-bitmap",
  "object",

@@ -1,8 +1,8 @@
 use alloc::vec::Vec;
 use x86_64::VirtAddr;
 
-const KERNEL_STACK_SIZE: usize = 4 * 1024;
-const USER_STACK_INIT_SIZE: usize = 16 * 1024;
+const KERNEL_STACK_SIZE: usize = 16 * 1024;
+const USER_STACK_INIT_SIZE: usize = 64 * 1024;
 const INIT_THREAD_STACK_SIZE: usize = 0;
 
 pub enum StackType {

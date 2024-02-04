@@ -3,7 +3,6 @@
 #![feature(abi_x86_interrupt)]
 #![feature(alloc_error_handler)]
 #![feature(naked_functions)]
-#![feature(asm_const)]
 #![feature(variant_count)]
 #![feature(allocator_api)]
 
@@ -31,10 +30,10 @@ pub fn init(boot_info: &'static mut BootInfo) {
     } = boot_info;
 
     printk::init(framebuffer);
-    gdt::init_gdt();
+    gdt::init();
     interrupts::IDT.load();
     memory::init(physical_memory_offset, memory_regions);
-    acpi::init(*rsdp_addr);
+    acpi::init(rsdp_addr);
     apic::init();
     device::mouse::init();
     syscall::init();
