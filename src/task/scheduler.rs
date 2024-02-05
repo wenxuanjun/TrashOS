@@ -1,6 +1,4 @@
-use alloc::boxed::Box;
 use alloc::collections::VecDeque;
-use alloc::sync::Arc;
 use conquer_once::spin::OnceCell;
 use spin::RwLock;
 use x86_64::instructions::interrupts;
@@ -8,24 +6,25 @@ use x86_64::registers::control::Cr3;
 use x86_64::VirtAddr;
 
 use super::context::Context;
+use super::process::SharedProcess;
+use super::thread::SharedThread;
 use super::{Process, Thread};
 
-const KERNEL_PROCESS_NAME: &str = "kernel";
-
 pub static SCHEDULER: OnceCell<RwLock<Scheduler>> = OnceCell::uninit();
-pub static KERNEL_PROCESS: OnceCell<Arc<RwLock<Box<Process>>>> = OnceCell::uninit();
+pub static KERNEL_PROCESS: OnceCell<SharedProcess> = OnceCell::uninit();
 
 pub fn init() {
-    let kernel_process = Arc::new(RwLock::new(Process::new(KERNEL_PROCESS_NAME)));
+    let kernel_process = Process::new_kernel_process();
     KERNEL_PROCESS.init_once(|| kernel_process.clone());
     SCHEDULER.init_once(|| RwLock::new(Scheduler::new()));
     SCHEDULER.try_get().unwrap().write().add(kernel_process);
     x86_64::instructions::interrupts::enable();
+    crate::info!("Scheduler initialized, interrupts enabled!");
 }
 
 pub struct Scheduler {
-    pub current_thread: Arc<RwLock<Box<Thread>>>,
-    processes: VecDeque<Arc<RwLock<Box<Process>>>>,
+    pub current_thread: SharedThread,
+    processes: VecDeque<SharedProcess>,
 }
 
 impl Scheduler {
@@ -37,13 +36,13 @@ impl Scheduler {
     }
 
     #[inline]
-    pub fn add(&mut self, process: Arc<RwLock<Box<Process>>>) {
+    pub fn add(&mut self, process: SharedProcess) {
         self.processes.push_back(process);
     }
 
-    pub fn get_next(&mut self) -> Arc<RwLock<Box<Thread>>> {
+    pub fn get_next(&mut self) -> SharedThread {
         let process = {
-            let filter = |process: &mut Arc<RwLock<Box<Process>>>| {
+            let filter = |process: &mut SharedProcess| {
                 let process = process.read();
                 !process.threads.is_empty()
             };
@@ -70,6 +69,7 @@ impl Scheduler {
             let mut thread = self.current_thread.write();
             thread.context = Context::copy_from_address(context);
         }
+
         self.current_thread = self.get_next();
         let thread = self.current_thread.read();
         let page_table = &thread.process.read().page_table;

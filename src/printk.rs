@@ -6,9 +6,9 @@ use noto_sans_mono_bitmap::{get_raster, get_raster_width};
 use noto_sans_mono_bitmap::{FontWeight, RasterHeight};
 use spin::Mutex;
 
-const FONT_WEIGHT: FontWeight = FontWeight::Regular;
+const FONT_WEIGHT: FontWeight = FontWeight::Bold;
 const FONT_WIDTH: usize = get_raster_width(FONT_WEIGHT, FONT_HEIGHT);
-const FONT_HEIGHT: RasterHeight = RasterHeight::Size20;
+const FONT_HEIGHT: RasterHeight = RasterHeight::Size16;
 pub const DEFAULT_COLOR: Color = Color::White;
 
 static PRINTK: OnceCell<Mutex<Printk>> = OnceCell::uninit();

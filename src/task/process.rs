@@ -10,10 +10,14 @@ use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
 use super::scheduler::SCHEDULER;
-use super::thread::Thread;
+use super::thread::{SharedThread, Thread};
 use crate::memory::create_page_table_from_kernel;
 use crate::memory::GeneralPageTable;
 use crate::memory::MemoryManager;
+
+pub(super) type SharedProcess = Arc<RwLock<Box<Process>>>;
+
+const KERNEL_PROCESS_NAME: &str = "kernel";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 struct ProcessId(u64);
@@ -30,7 +34,7 @@ pub struct Process {
     id: ProcessId,
     name: Cow<'static, str>,
     pub page_table: GeneralPageTable,
-    pub threads: VecDeque<Arc<RwLock<Box<Thread>>>>,
+    pub threads: VecDeque<SharedThread>,
 }
 
 impl Process {
@@ -44,10 +48,14 @@ impl Process {
         Box::new(process)
     }
 
+    pub fn new_kernel_process() -> SharedProcess {
+        Arc::new(RwLock::new(Self::new(KERNEL_PROCESS_NAME)))
+    }
+
     pub fn new_user_process(
         name: &'static str,
         elf_raw_data: &'static [u8],
-    ) -> Result<Arc<RwLock<Box<Self>>>, &'static str> {
+    ) -> Result<SharedProcess, &'static str> {
         let process = Arc::new(RwLock::new(Self::new(name)));
         let binary = ProcessBinary::parse(elf_raw_data);
         Thread::new_user_thread(process.clone(), binary.entry() as usize);

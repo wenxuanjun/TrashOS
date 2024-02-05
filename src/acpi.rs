@@ -20,12 +20,12 @@ impl AcpiHandler for AcpiMemHandler {
         physical_address: usize,
         size: usize,
     ) -> PhysicalMapping<Self, T> {
-        let notnull_address = {
+        let virtual_address = {
             let physical_memory_offset = PHYSICAL_MEMORY_OFFSET.try_get().unwrap();
             let virtual_address = physical_memory_offset + physical_address as u64;
             NonNull::new_unchecked(virtual_address as *mut T)
         };
-        PhysicalMapping::new(physical_address, notnull_address, size, size, self.clone())
+        PhysicalMapping::new(physical_address, virtual_address, size, size, self.clone())
     }
 
     fn unmap_physical_region<T>(_region: &PhysicalMapping<Self, T>) {}

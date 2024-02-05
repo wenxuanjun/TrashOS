@@ -29,6 +29,8 @@ pub fn init() {
     unsafe {
         Efer::write(Efer::read() | EferFlags::SYSTEM_CALL_EXTENSIONS);
     }
+
+    crate::info!("Syscall handler initialized!");
 }
 
 #[naked]

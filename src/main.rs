@@ -20,10 +20,10 @@ fn main(boot_info: &'static mut BootInfo) -> ! {
     TrashOS::init(boot_info);
     TrashOS::task::Thread::new_kernel_thread(TrashOS::device::keyboard::print_keypresses);
 
-    let hello_raw_elf = include_bytes!("../target/x86_64-unknown-none/debug/hello");
-    let counter_raw_elf = include_bytes!("../target/x86_64-unknown-none/debug/counter");
-    TrashOS::task::Process::new_user_process("Hello", hello_raw_elf).unwrap();
-    TrashOS::task::Process::new_user_process("Counter", counter_raw_elf).unwrap();
+    // let hello_raw_elf = include_bytes!("../target/x86_64-unknown-none/debug/hello");
+    // let counter_raw_elf = include_bytes!("../target/x86_64-unknown-none/debug/counter");
+    // TrashOS::task::Process::new_user_process("Hello", hello_raw_elf).unwrap();
+    // TrashOS::task::Process::new_user_process("Counter", counter_raw_elf).unwrap();
 
     loop {
         x86_64::instructions::hlt();
