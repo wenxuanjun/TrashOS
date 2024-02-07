@@ -6,7 +6,7 @@ fn main() {
     let mut out_path = PathBuf::from(root_dir);
     out_path.push("TrashOS.img");
 
-    let kernel_dir = Path::new(env!("CARGO_BIN_FILE_TRASHOS_TrashOS"));
+    let kernel_dir = Path::new(env!("CARGO_BIN_FILE_KERNEL_kernel"));
 
     bootloader::UefiBoot::new(&kernel_dir)
         .create_disk_image(&out_path)

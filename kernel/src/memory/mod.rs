@@ -16,14 +16,14 @@ pub static PHYSICAL_MEMORY_OFFSET: OnceCell<u64> = OnceCell::uninit();
 pub static KERNEL_PAGE_TABLE: OnceCell<Mutex<GeneralPageTable>> = OnceCell::uninit();
 pub static FRAME_ALLOCATOR: OnceCell<Mutex<BootInfoFrameAllocator>> = OnceCell::uninit();
 
-pub fn init(physical_memory_offset: &Optional<u64>, memory_regions: &'static MemoryRegions) {
-    let physical_memory_offset = physical_memory_offset.into_option().unwrap();
-    PHYSICAL_MEMORY_OFFSET.init_once(|| physical_memory_offset);
+pub fn init(offset: &Optional<u64>, regions: &'static MemoryRegions) {
+    let offset = offset.into_option().unwrap();
+    PHYSICAL_MEMORY_OFFSET.init_once(|| offset);
 
-    let frame_allocator = BootInfoFrameAllocator::init(memory_regions);
+    let frame_allocator = BootInfoFrameAllocator::init(regions);
     FRAME_ALLOCATOR.init_once(|| Mutex::new(frame_allocator));
 
-    let page_table = GeneralPageTable::ref_from_current(VirtAddr::new(physical_memory_offset));
+    let page_table = GeneralPageTable::ref_from_current(VirtAddr::new(offset));
     KERNEL_PAGE_TABLE.init_once(|| Mutex::new(page_table));
 
     kernel_heap::init_heap();

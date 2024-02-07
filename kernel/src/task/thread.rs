@@ -10,7 +10,7 @@ use super::context::Context;
 use super::process::SharedProcess;
 use super::scheduler;
 use super::stack::{StackType, ThreadStack};
-use crate::gdt::Selectors;
+use crate::arch::gdt::Selectors;
 use crate::memory::MemoryManager;
 
 pub(super) type SharedThread = Arc<RwLock<Box<Thread>>>;

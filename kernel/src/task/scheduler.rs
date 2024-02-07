@@ -43,8 +43,7 @@ impl Scheduler {
     pub fn get_next(&mut self) -> SharedThread {
         let process = {
             let filter = |process: &mut SharedProcess| {
-                let process = process.read();
-                !process.threads.is_empty()
+                !process.read().threads.is_empty()
             };
             let process_index = self.processes.iter_mut().position(filter).unwrap();
             self.processes.remove(process_index).unwrap()
@@ -52,10 +51,8 @@ impl Scheduler {
 
         let thread = {
             let mut process = process.write();
-
             let to_thread = process.threads.pop_front();
             process.threads.push_back(to_thread.clone().unwrap());
-
             to_thread
         };
 

@@ -4,12 +4,13 @@ use x86_64::registers::model_specific::{LStar, SFMask, Star};
 use x86_64::registers::rflags::RFlags;
 use x86_64::VirtAddr;
 
-mod matcher;
+use crate::arch::gdt::Selectors;
 use matcher::syscall_matcher;
+
+mod matcher;
 mod operations;
 
 pub fn init() {
-    use crate::gdt::Selectors;
     let handler_addr = syscall_handler as *const () as u64;
 
     SFMask::write(RFlags::INTERRUPT_FLAG);

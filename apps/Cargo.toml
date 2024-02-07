@@ -21,5 +21,5 @@ panic = "abort"
 lto = true
 opt-level = "z"
 panic = "abort"
-strip = "symbols"
+strip = true
 codegen-units = 1

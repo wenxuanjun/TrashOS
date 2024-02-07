@@ -1,7 +1,7 @@
 [package]
 name = "builder"
-version = "0.1.0"
 edition = "2021"
+version = "0.1.0"
 
 [dependencies]
 ovmf-prebuilt = "0.1.0-alpha.1"
@@ -11,7 +11,7 @@ version = "0.11"
 features = ["uefi"]
 default-features = false
 
-[dependencies.TrashOS]
-path = ".."
+[dependencies.kernel]
+path = "../kernel"
 artifact = "bin"
 target = "x86_64-unknown-none"

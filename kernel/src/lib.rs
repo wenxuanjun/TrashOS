@@ -6,11 +6,8 @@
 #![feature(variant_count)]
 #![feature(allocator_api)]
 
-pub mod acpi;
-pub mod apic;
+pub mod arch;
 pub mod device;
-pub mod gdt;
-pub mod interrupts;
 pub mod log;
 pub mod memory;
 pub mod printk;
@@ -30,11 +27,11 @@ pub fn init(boot_info: &'static mut BootInfo) {
     } = boot_info;
 
     printk::init(framebuffer);
-    gdt::init();
-    interrupts::IDT.load();
+    arch::gdt::init();
+    arch::interrupts::IDT.load();
     memory::init(physical_memory_offset, memory_regions);
-    acpi::init(rsdp_addr);
-    apic::init();
+    arch::acpi::init(rsdp_addr);
+    arch::apic::init();
     device::mouse::init();
     syscall::init();
     task::scheduler::init();

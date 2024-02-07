@@ -17,13 +17,13 @@ pub static BOOTLOADER_CONFIG: BootloaderConfig = {
 entry_point!(main, config = &BOOTLOADER_CONFIG);
 
 fn main(boot_info: &'static mut BootInfo) -> ! {
-    TrashOS::init(boot_info);
-    TrashOS::task::Thread::new_kernel_thread(TrashOS::device::keyboard::print_keypresses);
+    kernel::init(boot_info);
+    kernel::task::Thread::new_kernel_thread(kernel::device::keyboard::print_keypresses);
 
-    // let hello_raw_elf = include_bytes!("../target/x86_64-unknown-none/debug/hello");
-    // let counter_raw_elf = include_bytes!("../target/x86_64-unknown-none/debug/counter");
-    // TrashOS::task::Process::new_user_process("Hello", hello_raw_elf).unwrap();
-    // TrashOS::task::Process::new_user_process("Counter", counter_raw_elf).unwrap();
+    let hello_raw_elf = include_bytes!("../../target/x86_64-unknown-none/debug/hello");
+    let counter_raw_elf = include_bytes!("../../target/x86_64-unknown-none/debug/counter");
+    kernel::task::Process::new_user_process("Hello", hello_raw_elf);
+    kernel::task::Process::new_user_process("Counter", counter_raw_elf);
 
     loop {
         x86_64::instructions::hlt();
@@ -32,7 +32,7 @@ fn main(boot_info: &'static mut BootInfo) -> ! {
 
 #[panic_handler]
 fn panic(panic_info: &PanicInfo<'_>) -> ! {
-    TrashOS::error!("{}", panic_info);
+    kernel::error!("{}", panic_info);
     loop {
         x86_64::instructions::hlt();
     }
