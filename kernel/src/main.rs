@@ -22,8 +22,8 @@ fn main(boot_info: &'static mut BootInfo) -> ! {
 
     let hello_raw_elf = include_bytes!("../../target/x86_64-unknown-none/debug/hello");
     let counter_raw_elf = include_bytes!("../../target/x86_64-unknown-none/debug/counter");
-    kernel::task::Process::new_user_process("Hello", hello_raw_elf);
-    kernel::task::Process::new_user_process("Counter", counter_raw_elf);
+    kernel::task::Process::new_user_process("Hello", hello_raw_elf).unwrap();
+    kernel::task::Process::new_user_process("Counter", counter_raw_elf).unwrap();
 
     loop {
         x86_64::instructions::hlt();

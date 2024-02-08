@@ -55,13 +55,13 @@ impl Process {
     pub fn new_user_process(
         name: &'static str,
         elf_raw_data: &'static [u8],
-    ) -> SharedProcess {
+    ) -> Result<SharedProcess, &'static str> {
         let process = Arc::new(RwLock::new(Self::new(name)));
         let binary = ProcessBinary::parse(elf_raw_data);
         Thread::new_user_thread(process.clone(), binary.entry() as usize);
-        ProcessBinary::map_segments(&binary, &mut process.write().page_table);
+        ProcessBinary::map_segments(&binary, &mut process.write().page_table)?;
         SCHEDULER.try_get().unwrap().write().add(process.clone());
-        process
+        Ok(process)
     }
 }
 
@@ -75,7 +75,7 @@ impl ProcessBinary {
     fn map_segments(
         elf_file: &File,
         page_table: &mut GeneralPageTable,
-    ) {
+    ) -> Result<(), &'static str> {
         crate::with_page_table!(page_table, {
             for segment in elf_file.segments() {
                 let segment_start = VirtAddr::new(segment.address() as u64);
@@ -85,7 +85,7 @@ impl ProcessBinary {
                     | PageTableFlags::WRITABLE
                     | PageTableFlags::USER_ACCESSIBLE;
                 <MemoryManager>::alloc_range(segment_start, segment_end, flags, page_table)
-                    .unwrap();
+                    .expect("Failed to allocate memory for ELF segment!");
 
                 if let Ok(data) = segment.data() {
                     let dest_ptr = segment_start.as_u64() as *mut u8;
@@ -97,5 +97,6 @@ impl ProcessBinary {
                 }
             }
         });
+        Ok(())
     }
 }

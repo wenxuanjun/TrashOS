@@ -38,7 +38,7 @@ default-features = false
 
 [dependencies.object]
 version = "0.32.2"
-features = ["read_core", "elf"]
+features = ["read"]
 default-features = false
 
 [dependencies.noto-sans-mono-bitmap]
