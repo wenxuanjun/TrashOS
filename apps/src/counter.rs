@@ -11,7 +11,7 @@ fn panic(_info: &PanicInfo) -> ! {
 #[no_mangle]
 pub unsafe extern "sysv64" fn _start() -> ! {
     let mut counter = 0;
-    loop {
+    for _ in 1..500 {
         let mut buf = [0u8; 6];
         let mut cnt = counter;
         for i in (0..6).rev() {
@@ -35,6 +35,11 @@ pub unsafe extern "sysv64" fn _start() -> ! {
             unsafe {
                 core::arch::asm!("nop");
             }
+        }
+    }
+    loop {
+        unsafe {
+            core::arch::asm!("nop");
         }
     }
 }

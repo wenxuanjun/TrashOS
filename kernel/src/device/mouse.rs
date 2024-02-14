@@ -1,21 +1,23 @@
 use bitflags::bitflags;
-use conquer_once::spin::OnceCell;
-use spin::Mutex;
+use spin::{Lazy, Mutex};
 use x86_64::instructions::port::Port;
 
 const PORT_READ_TRY_TIMES: u16 = 10_000;
 
-pub static MOUSE: OnceCell<Mutex<Mouse>> = OnceCell::uninit();
+pub static MOUSE: Lazy<Mutex<Mouse>> = Lazy::new(|| Mutex::new(Mouse::new()));
 
 pub fn init() {
-    MOUSE.init_once(|| Mutex::new(Mouse::new()));
     x86_64::instructions::interrupts::without_interrupts(|| {
-        let mut mouse = MOUSE.try_get().unwrap().lock();
-        unsafe { mouse.init().unwrap() };
-        mouse.set_complete_handler(mouse_complete_handler);
-        crate::debug!("Mouse Type: {:?}", mouse.mouse_type);
+        let mut mouse = MOUSE.lock();
+        match mouse.init() {
+            Ok(_) => {
+                mouse.set_complete_handler(mouse_complete_handler);
+                crate::debug!("Mouse Type: {:?}", mouse.mouse_type);
+                crate::info!("Mouse initialized successfully!");
+            }
+            Err(err) => crate::error!("Failed to initialize mouse: {}", err),
+        }
     });
-    crate::info!("Mouse initialized successfully!");
 }
 
 fn mouse_complete_handler(mouse_state: MouseState) {
@@ -47,9 +49,9 @@ enum MouseAdditionalFlags {
 
 #[derive(Debug)]
 enum MouseType {
-    Standard = 0,
-    OnlyScroll = 3,
-    FiveButton = 4,
+    Standard,
+    OnlyScroll,
+    FiveButton,
 }
 
 #[derive(Debug)]
@@ -93,10 +95,12 @@ impl Mouse {
         }
     }
 
-    pub unsafe fn init(&mut self) -> Result<(), &'static str> {
-        self.enable_packet_streaming()?
-            .enable_scroll_wheel()?
-            .enable_additional_button()?;
+    pub fn init(&mut self) -> Result<(), &'static str> {
+        unsafe {
+            self.enable_packet_streaming()?
+                .enable_scroll_wheel()?
+                .enable_additional_button()?;
+        }
         Ok(())
     }
 

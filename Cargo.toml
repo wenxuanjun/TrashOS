@@ -1,3 +1,4 @@
 [workspace]
 members = ["apps", "builder", "kernel"]
 resolver = "2"
+default-members = ["builder"]

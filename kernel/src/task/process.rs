@@ -11,9 +11,9 @@ use x86_64::VirtAddr;
 
 use super::scheduler::SCHEDULER;
 use super::thread::{SharedThread, Thread};
-use crate::memory::create_page_table_from_kernel;
 use crate::memory::GeneralPageTable;
 use crate::memory::MemoryManager;
+use crate::memory::{create_page_table_from_kernel, KERNEL_PAGE_TABLE};
 
 pub(super) type SharedProcess = Arc<RwLock<Box<Process>>>;
 
@@ -76,7 +76,8 @@ impl ProcessBinary {
         elf_file: &File,
         page_table: &mut GeneralPageTable,
     ) -> Result<(), &'static str> {
-        crate::with_page_table!(page_table, {
+        x86_64::instructions::interrupts::without_interrupts(|| unsafe {
+            page_table.switch();
             for segment in elf_file.segments() {
                 let segment_start = VirtAddr::new(segment.address() as u64);
                 let segment_end = segment_start + segment.size() as u64 - 1u64;
@@ -90,12 +91,11 @@ impl ProcessBinary {
                 if let Ok(data) = segment.data() {
                     let dest_ptr = segment_start.as_u64() as *mut u8;
                     for (index, value) in data.iter().enumerate() {
-                        unsafe {
-                            core::ptr::write(dest_ptr.add(index), *value);
-                        }
+                        core::ptr::write(dest_ptr.add(index), *value);
                     }
                 }
             }
+            KERNEL_PAGE_TABLE.try_get().unwrap().lock().switch();
         });
         Ok(())
     }

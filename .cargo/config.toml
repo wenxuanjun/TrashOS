@@ -1,7 +1,2 @@
 [unstable]
 bindeps = true
-
-[alias]
-debug = "run --package builder --"
-release = "run --release --package builder --"
-apps = "build --package apps --"

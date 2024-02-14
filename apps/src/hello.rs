@@ -10,7 +10,7 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 pub unsafe extern "sysv64" fn _start() -> ! {
-    loop {
+    for _ in 1..500 {
         let hello = "Hello!";
         unsafe {
             core::arch::asm!(
@@ -28,6 +28,11 @@ pub unsafe extern "sysv64" fn _start() -> ! {
             unsafe {
                 core::arch::asm!("nop");
             }
+        }
+    }
+    loop {
+        unsafe {
+            core::arch::asm!("nop");
         }
     }
 }

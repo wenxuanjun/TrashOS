@@ -10,7 +10,6 @@ use super::gdt::GENERAL_INTERRUPT_IST_INDEX;
 use crate::task::scheduler::SCHEDULER;
 
 const INTERRUPT_INDEX_OFFSET: u8 = 32;
-pub const IOAPIC_INTERRUPT_INDEX_OFFSET: u8 = 32;
 
 #[derive(Debug, Clone, Copy)]
 #[repr(u8)]
@@ -55,6 +54,7 @@ pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
             .set_handler_fn(mouse_interrupt)
             .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
     }
+
     return idt;
 });
 
@@ -126,8 +126,7 @@ extern "x86-interrupt" fn keyboard_interrupt(_frame: InterruptStackFrame) {
 
 extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {
     let packet = unsafe { PortReadOnly::new(0x60).read() };
-    let mouse = crate::device::mouse::MOUSE.try_get().unwrap();
-    mouse.lock().process_packet(packet);
+    crate::device::mouse::MOUSE.lock().process_packet(packet);
     super::apic::end_of_interrupt();
 }
 

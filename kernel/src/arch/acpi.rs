@@ -6,8 +6,9 @@ use alloc::boxed::Box;
 use bootloader_api::info::Optional;
 use conquer_once::spin::OnceCell;
 use core::ptr::NonNull;
+use x86_64::PhysAddr;
 
-use crate::memory::PHYSICAL_MEMORY_OFFSET;
+use crate::memory::convert_physical_to_virtual;
 
 pub static ACPI: OnceCell<Acpi> = OnceCell::uninit();
 
@@ -21,9 +22,9 @@ impl AcpiHandler for AcpiMemHandler {
         size: usize,
     ) -> PhysicalMapping<Self, T> {
         let virtual_address = {
-            let physical_memory_offset = PHYSICAL_MEMORY_OFFSET.try_get().unwrap();
-            let virtual_address = physical_memory_offset + physical_address as u64;
-            NonNull::new_unchecked(virtual_address as *mut T)
+            let physical_address = PhysAddr::new(physical_address as u64);
+            let virtual_address = convert_physical_to_virtual(physical_address);
+            NonNull::new_unchecked(virtual_address.as_u64() as *mut T)
         };
         PhysicalMapping::new(physical_address, virtual_address, size, size, self.clone())
     }
