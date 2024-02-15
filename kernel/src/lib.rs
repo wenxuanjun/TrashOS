@@ -31,6 +31,7 @@ pub fn init(boot_info: &'static mut BootInfo) {
     arch::interrupts::IDT.load();
     memory::init(physical_memory_offset, memory_regions);
     arch::acpi::init(rsdp_addr);
+    arch::hpet::init();
     arch::apic::init();
     device::mouse::init();
     syscall::init();

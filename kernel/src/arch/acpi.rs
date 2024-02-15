@@ -1,6 +1,6 @@
 use acpi::platform::interrupt::Apic;
 use acpi::InterruptModel;
-use acpi::{AcpiHandler, AcpiTables, PhysicalMapping};
+use acpi::{AcpiHandler, AcpiTables, PhysicalMapping, HpetInfo};
 use alloc::alloc::Global;
 use alloc::boxed::Box;
 use bootloader_api::info::Optional;
@@ -35,6 +35,7 @@ impl AcpiHandler for AcpiMemHandler {
 #[derive(Debug)]
 pub struct Acpi<'a> {
     pub apic_info: Apic<'a, Global>,
+    pub hpet_info: HpetInfo,
 }
 
 pub fn init(rsdp_addr: &Optional<u64>) {
@@ -55,5 +56,7 @@ pub fn init(rsdp_addr: &Optional<u64>) {
         _ => panic!("ACPI does not have interrupt model info!"),
     };
 
-    ACPI.init_once(|| Acpi { apic_info });
+    let hpet_info = HpetInfo::new(acpi_tables).expect("Failed to get HPET info!");
+
+    ACPI.init_once(|| Acpi { apic_info, hpet_info });
 }

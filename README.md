@@ -17,18 +17,24 @@ $ rustup component add rust-src
 $ rustup component add llvm-tools-preview
 ```
 
-Then you can build the TrashOS by running following command:
+Then you can run the builder to generate the disk image:
 
 ```bash
-$ cargo debug
+$ cargo run
 ```
 
 ### Running
 
-You can run the TrashOS by running following command:
+Add `--help` to the command line to see the help:
 
 ```bash
-$ cargo debug --boot
+$ cargo run -- --help
+```
+
+For example, to build optimized binary and boot it with KVM:
+
+```bash
+$ cargo run --release -- --boot --kvm
 ```
 
 ### TODO
