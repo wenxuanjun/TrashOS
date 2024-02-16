@@ -13,13 +13,3 @@ path = "src/hello.rs"
 [[bin]]
 name = "counter"
 path = "src/counter.rs"
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-lto = true
-opt-level = "z"
-panic = "abort"
-strip = true
-codegen-units = 1

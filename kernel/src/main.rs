@@ -26,8 +26,8 @@ fn main(boot_info: &'static mut BootInfo) -> ! {
     let current_time = RtcDateTime::new().to_datetime().unwrap();
     kernel::info!("Current time: {}", current_time);
 
-    let hello_raw_elf = include_bytes!("../../target/x86_64-unknown-none/debug/hello");
-    let counter_raw_elf = include_bytes!("../../target/x86_64-unknown-none/debug/counter");
+    let hello_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/hello");
+    let counter_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/counter");
     Process::new_user_process("Hello", hello_raw_elf).unwrap();
     Process::new_user_process("Counter", counter_raw_elf).unwrap();
 

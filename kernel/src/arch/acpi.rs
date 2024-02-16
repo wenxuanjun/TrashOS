@@ -1,6 +1,6 @@
 use acpi::platform::interrupt::Apic;
 use acpi::InterruptModel;
-use acpi::{AcpiHandler, AcpiTables, PhysicalMapping, HpetInfo};
+use acpi::{AcpiHandler, AcpiTables, HpetInfo, PhysicalMapping};
 use alloc::alloc::Global;
 use alloc::boxed::Box;
 use bootloader_api::info::Optional;
@@ -58,5 +58,8 @@ pub fn init(rsdp_addr: &Optional<u64>) {
 
     let hpet_info = HpetInfo::new(acpi_tables).expect("Failed to get HPET info!");
 
-    ACPI.init_once(|| Acpi { apic_info, hpet_info });
+    ACPI.init_once(|| Acpi {
+        apic_info,
+        hpet_info,
+    });
 }

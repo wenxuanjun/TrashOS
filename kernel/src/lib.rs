@@ -1,5 +1,4 @@
 #![no_std]
-#![allow(non_snake_case)]
 #![feature(abi_x86_interrupt)]
 #![feature(alloc_error_handler)]
 #![feature(naked_functions)]

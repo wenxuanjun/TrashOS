@@ -24,10 +24,6 @@ pub unsafe extern "sysv64" fn _start() -> ! {
                 in("rax") 1,
                 in("rdi") &buf,
                 in("rsi") buf.len(),
-                in("rdx") 0,
-                in("r10") 0,
-                in("r8") 0,
-                in("r9") 0,
             );
         }
         counter += 1;

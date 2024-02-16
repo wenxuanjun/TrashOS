@@ -18,10 +18,6 @@ pub unsafe extern "sysv64" fn _start() -> ! {
                 in("rax") 1,
                 in("rdi") hello.as_ptr(),
                 in("rsi") hello.len(),
-                in("rdx") 0,
-                in("r10") 0,
-                in("r8") 0,
-                in("r9") 0,
             );
         }
         for _ in 1..100000 {

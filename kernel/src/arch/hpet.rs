@@ -31,7 +31,7 @@ impl Hpet {
         }
     }
 
-    pub fn timers_num(&self) -> u32 {
+    pub fn timers_count(&self) -> u32 {
         unsafe {
             let base_addr = *self.base_addr.get();
             let value = ptr::read_volatile(base_addr as *const u64);
@@ -80,5 +80,5 @@ pub fn init() {
     HPET.enable_counter();
 
     crate::debug!("HPET clock speed: {} femto seconds", HPET.clock_speed());
-    crate::debug!("HPET timers: {} available", HPET.timers_num());
+    crate::debug!("HPET timers: {} available", HPET.timers_count());
 }

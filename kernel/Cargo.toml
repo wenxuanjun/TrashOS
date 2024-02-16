@@ -1,17 +1,10 @@
+cargo-features = ["per-package-target"]
+
 [package]
 name = "kernel"
 version = "0.1.0"
 edition = "2021"
-
-[profile.dev]
-panic = "abort"
-
-[profile.release]
-lto = true
-opt-level = "z"
-panic = "abort"
-strip = true
-codegen-units = 1
+forced-target = "x86_64-unknown-none"
 
 [dependencies]
 x86_64 = "0.14.12"

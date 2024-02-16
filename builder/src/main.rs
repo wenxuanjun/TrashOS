@@ -30,6 +30,8 @@ fn main() {
         .join("TrashOS.img");
 
     let kernel_path = Path::new(env!("CARGO_BIN_FILE_KERNEL_kernel"));
+    println!("Building UEFI disk image for kernel at {:#?}", &kernel_path);
+
     let _ = UefiBoot::new(&kernel_path).create_disk_image(&img_path);
     println!("Created bootable UEFI disk image at {:#?}", &img_path);
 
