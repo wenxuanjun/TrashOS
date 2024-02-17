@@ -12,6 +12,3 @@ opt-level = "z"
 panic = "abort"
 strip = "symbols"
 codegen-units = 1
-
-[profile.release.package.apps]
-opt-level = 0
