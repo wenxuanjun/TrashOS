@@ -19,9 +19,9 @@ pub fn init(boot_info: &'static mut Optional<FrameBuffer>) {
     let printk = Printk {
         row_position: 0,
         column_position: 0,
-        info: frame_buffer.info().clone(),
+        info: frame_buffer.info(),
         buffer: frame_buffer.buffer_mut(),
-        level: DEFAULT_COLOR,
+        color: DEFAULT_COLOR,
     };
 
     PRINTK.try_init_once(|| Mutex::new(printk)).unwrap();
@@ -33,7 +33,7 @@ pub struct Printk<'a> {
     column_position: usize,
     info: FrameBufferInfo,
     buffer: &'a mut [u8],
-    level: Color,
+    color: Color,
 }
 
 #[derive(Debug)]
@@ -69,21 +69,29 @@ impl Color {
 }
 
 impl<'a> Printk<'a> {
-    pub fn change_level(&mut self, level: Color) {
-        self.level = level;
-    }
+    fn draw_pixel(&mut self, x: usize, y: usize, intensity: u8) {
+        let FrameBufferInfo {
+            pixel_format,
+            bytes_per_pixel,
+            stride,
+            ..
+        } = self.info;
 
-    pub fn draw_pixel(&mut self, x: usize, y: usize, intensity: u8) {
-        let pixel_offset = y * self.info.stride + x;
-        let bytes_per_pixel = self.info.bytes_per_pixel;
-        let byte_offset = pixel_offset * bytes_per_pixel;
+        let byte_offset = (y * stride + x) * bytes_per_pixel;
         let write_range = byte_offset..(byte_offset + bytes_per_pixel);
-        let color = self
-            .level
-            .get_color_pixel(self.info.pixel_format, intensity);
+
+        let color = self.color.get_color_pixel(pixel_format, intensity);
         self.buffer[write_range].copy_from_slice(&color[..bytes_per_pixel]);
     }
 
+    #[inline]
+    fn clear_screen(&mut self) {
+        self.buffer.fill(0);
+        self.row_position = 0;
+        self.column_position = 0;
+    }
+
+    #[inline]
     fn new_line(&mut self) {
         self.row_position = 0;
         self.column_position += FONT_HEIGHT as usize;
@@ -100,13 +108,7 @@ impl<'a> Printk<'a> {
         }
     }
 
-    fn clear_screen(&mut self) {
-        self.buffer.fill(0);
-        self.row_position = 0;
-        self.column_position = 0;
-    }
-
-    pub fn write_byte(&mut self, byte: char) {
+    fn write_byte(&mut self, byte: char) {
         if self.row_position >= self.info.width - FONT_WIDTH {
             self.new_line();
         }
@@ -136,28 +138,24 @@ impl<'a> fmt::Write for Printk<'a> {
     }
 }
 
-#[doc(hidden)]
-pub fn _print(args: fmt::Arguments) {
-    use x86_64::instructions::interrupts;
-    interrupts::without_interrupts(|| {
-        PRINTK.try_get().unwrap().lock().write_fmt(args).unwrap();
-    });
-}
-
-pub fn change_print_level(level: Color) {
-    PRINTK.try_get().unwrap().lock().change_level(level);
+#[inline]
+pub fn _print(color: Color, args: fmt::Arguments) {
+    PRINTK.try_get().unwrap().lock().color = color;
+    PRINTK.try_get().unwrap().lock().write_fmt(args).unwrap();
 }
 
 #[macro_export]
 macro_rules! print {
-    ($($arg:tt)*) => ({
-        $crate::printk::change_print_level($crate::printk::DEFAULT_COLOR);
-        $crate::printk::_print(format_args!($($arg)*));
-    });
+    ($($arg:tt)*) => (
+        $crate::console::printk::_print(
+            $crate::console::printk::DEFAULT_COLOR,
+            format_args!($($arg)*)
+        )
+    )
 }
 
 #[macro_export]
 macro_rules! println {
     () => ($crate::print!("\n"));
-    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)))
 }

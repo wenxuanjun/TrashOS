@@ -79,6 +79,6 @@ pub fn init() {
     HPET.init(virtual_address.as_u64());
     HPET.enable_counter();
 
-    crate::debug!("HPET clock speed: {} femto seconds", HPET.clock_speed());
-    crate::debug!("HPET timers: {} available", HPET.timers_count());
+    log::debug!("HPET clock speed: {} femto seconds", HPET.clock_speed());
+    log::debug!("HPET timers: {} available", HPET.timers_count());
 }

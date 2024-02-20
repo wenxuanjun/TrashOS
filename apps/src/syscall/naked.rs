@@ -1,16 +1,4 @@
 #[naked]
-pub extern "C" fn syscall0(_rax: u64) -> usize {
-    unsafe {
-        core::arch::asm!(
-            "mov rax, rdi",
-            "syscall",
-            "ret",
-            options(noreturn)
-        )
-    }
-}
-
-#[naked]
 pub extern "C" fn syscall1(_rax: u64, _rdi: *const u8) -> usize {
     unsafe {
         core::arch::asm!(

@@ -45,7 +45,8 @@ pub fn init(rsdp_addr: &Optional<u64>) {
         Box::leak(Box::new(tables.unwrap()))
     };
 
-    crate::info!("Find ACPI tables successfully!");
+    log::info!("Find ACPI tables successfully!");
+
     let platform_info = acpi_tables
         .platform_info()
         .expect("Failed to get platform info!");

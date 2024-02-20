@@ -19,7 +19,7 @@ pub fn init() {
     SCHEDULER.init_once(|| RwLock::new(Scheduler::new()));
     SCHEDULER.try_get().unwrap().write().add(kernel_process);
     x86_64::instructions::interrupts::enable();
-    crate::info!("Scheduler initialized, interrupts enabled!");
+    log::info!("Scheduler initialized, interrupts enabled!");
 }
 
 pub struct Scheduler {

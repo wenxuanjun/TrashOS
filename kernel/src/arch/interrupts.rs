@@ -82,39 +82,39 @@ extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
 }
 
 extern "x86-interrupt" fn lapic_error(_frame: InterruptStackFrame) {
-    crate::error!("Local APIC error!");
+    log::error!("Local APIC error!");
     super::apic::end_of_interrupt();
 }
 
 extern "x86-interrupt" fn spurious_interrupt(_frame: InterruptStackFrame) {
-    crate::debug!("Received spurious interrupt!");
+    log::debug!("Received spurious interrupt!");
     super::apic::end_of_interrupt();
 }
 
 extern "x86-interrupt" fn segment_not_present(frame: InterruptStackFrame, error_code: u64) {
-    crate::error!("Exception: Segment Not Present\n{:#?}", frame);
-    crate::error!("Error Code: {:#x}", error_code);
+    log::error!("Exception: Segment Not Present\n{:#?}", frame);
+    log::error!("Error Code: {:#x}", error_code);
     panic!("Unrecoverable fault occured, halting!");
 }
 
 extern "x86-interrupt" fn general_protection_fault(frame: InterruptStackFrame, error_code: u64) {
-    crate::error!("Exception: General Protection Fault\n{:#?}", frame);
-    crate::error!("Error Code: {:#x}", error_code);
+    log::error!("Exception: General Protection Fault\n{:#?}", frame);
+    log::error!("Error Code: {:#x}", error_code);
     x86_64::instructions::hlt();
 }
 
 extern "x86-interrupt" fn invalid_opcode(frame: InterruptStackFrame) {
-    crate::error!("Exception: Invalid Opcode\n{:#?}", frame);
+    log::error!("Exception: Invalid Opcode\n{:#?}", frame);
     x86_64::instructions::hlt();
 }
 
 extern "x86-interrupt" fn breakpoint(frame: InterruptStackFrame) {
-    crate::debug!("Exception: Breakpoint\n{:#?}", frame);
+    log::debug!("Exception: Breakpoint\n{:#?}", frame);
 }
 
 extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, error_code: u64) -> ! {
-    crate::error!("Exception: Double Fault\n{:#?}", frame);
-    crate::error!("Error Code: {:#x}", error_code);
+    log::error!("Exception: Double Fault\n{:#?}", frame);
+    log::error!("Error Code: {:#x}", error_code);
     panic!("Unrecoverable fault occured, halting!");
 }
 
@@ -132,8 +132,8 @@ extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {
 
 extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error_code: PageFaultErrorCode) {
     let fault_addr = Cr2::read();
-    crate::warn!("Exception: Page Fault\n{:#?}", frame);
-    crate::warn!("Error Code: {:#x}", error_code);
-    crate::warn!("Fault Address: {:#x}", fault_addr);
+    log::warn!("Exception: Page Fault\n{:#?}", frame);
+    log::warn!("Error Code: {:#x}", error_code);
+    log::warn!("Fault Address: {:#x}", fault_addr);
     x86_64::instructions::hlt();
 }

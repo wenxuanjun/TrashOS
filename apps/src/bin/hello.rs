@@ -1,8 +1,8 @@
 #![no_std]
 #![no_main]
 
-use core::panic::PanicInfo;
 use apps::syscall::write;
+use core::panic::PanicInfo;
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {

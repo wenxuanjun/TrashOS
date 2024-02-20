@@ -6,12 +6,11 @@
 #![feature(allocator_api)]
 
 pub mod arch;
+pub mod console;
 pub mod device;
-pub mod log;
 pub mod memory;
-pub mod printk;
-pub mod syscall;
 pub mod task;
+pub mod syscall;
 
 extern crate alloc;
 use bootloader_api::BootInfo;
@@ -25,7 +24,8 @@ pub fn init(boot_info: &'static mut BootInfo) {
         ..
     } = boot_info;
 
-    printk::init(framebuffer);
+    console::printk::init(framebuffer);
+    console::log::init();
     arch::gdt::init();
     arch::interrupts::IDT.load();
     memory::init(physical_memory_offset, memory_regions);

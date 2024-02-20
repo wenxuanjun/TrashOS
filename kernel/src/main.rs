@@ -1,7 +1,5 @@
 #![no_std]
 #![no_main]
-#![allow(non_snake_case)]
-#![feature(abi_x86_interrupt)]
 
 extern crate alloc;
 use bootloader_api::config::{BootloaderConfig, Mapping};
@@ -24,7 +22,7 @@ fn main(boot_info: &'static mut BootInfo) -> ! {
     Thread::new_kernel_thread(print_keypresses);
 
     let current_time = RtcDateTime::new().to_datetime().unwrap();
-    kernel::info!("Current time: {}", current_time);
+    log::info!("Current time: {}", current_time);
 
     let hello_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/hello");
     let counter_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/counter");
@@ -38,7 +36,7 @@ fn main(boot_info: &'static mut BootInfo) -> ! {
 
 #[panic_handler]
 fn panic(panic_info: &PanicInfo<'_>) -> ! {
-    kernel::error!("{}", panic_info);
+    log::error!("{}", panic_info);
     loop {
         x86_64::instructions::hlt();
     }

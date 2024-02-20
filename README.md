@@ -43,8 +43,9 @@ $ cargo run --release -- --boot --kvm
 - [x] Preemptive multitasking
 - [ ] Memory management
 - [ ] Inter process communication
-- [ ] Double buffering
 - [ ] MLFQ scheduler
+- [ ] Symmetric multiprocessing
 - [ ] PCI support
+- [ ] A simple shell
 - [ ] AHCI support
 - [ ] Filesystem support

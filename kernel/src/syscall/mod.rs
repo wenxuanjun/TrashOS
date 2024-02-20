@@ -31,7 +31,7 @@ pub fn init() {
         Efer::write(Efer::read() | EferFlags::SYSTEM_CALL_EXTENSIONS);
     }
 
-    crate::info!("Syscall handler initialized!");
+    log::info!("Syscall handler initialized!");
 }
 
 #[naked]

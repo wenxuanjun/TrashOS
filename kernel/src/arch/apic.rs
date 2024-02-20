@@ -29,7 +29,7 @@ pub fn init() {
         calibrate_timer();
         init_ioapic();
     };
-    crate::info!("APIC initialized successfully!");
+    log::info!("APIC initialized successfully!");
 }
 
 #[inline]
@@ -105,7 +105,7 @@ pub unsafe fn calibrate_timer() {
     }
 
     let average_clock_per_ms = lapic_total_ticks / TIMER_CALIBRATION_ITERATION;
-    crate::debug!("Calibrated clock per ms: {}", average_clock_per_ms);
+    log::debug!("Calibrated clock per ms: {}", average_clock_per_ms);
 
     lapic.set_timer_mode(TimerMode::Periodic);
     lapic.set_timer_initial(average_clock_per_ms * 1000 / TIMER_FREQUENCY_HZ);

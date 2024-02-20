@@ -12,10 +12,10 @@ pub fn init() {
         match mouse.init() {
             Ok(_) => {
                 mouse.set_complete_handler(mouse_complete_handler);
-                crate::debug!("Mouse Type: {:?}", mouse.mouse_type);
-                crate::info!("Mouse initialized successfully!");
+                log::debug!("Mouse Type: {:?}", mouse.mouse_type);
+                log::info!("Mouse initialized successfully!");
             }
-            Err(err) => crate::error!("Failed to initialize mouse: {}", err),
+            Err(err) => log::error!("Failed to initialize mouse: {}", err),
         }
     });
 }

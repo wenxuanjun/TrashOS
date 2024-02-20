@@ -32,11 +32,10 @@ pub extern "C" fn syscall_matcher(
 ) {
     let syscall_number_raw: usize;
     unsafe { asm!("mov {0}, rax", out(reg) syscall_number_raw) };
-    let syscall_number = SyscallIndex::from(syscall_number_raw);
 
-    match syscall_number {
+    match SyscallIndex::from(syscall_number_raw) {
         SyscallIndex::Read => unimplemented!(),
-        SyscallIndex::Write => write(arg1, arg2),
+        SyscallIndex::Write => write(arg1 as *const u8, arg2),
         SyscallIndex::Exit => unimplemented!(),
     }
 }
