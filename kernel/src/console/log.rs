@@ -15,8 +15,8 @@ impl log::Log for Logger {
 
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
-            match record.level() {
-                log::Level::Debug => super::printk::_print(
+            if record.level() >= log::Level::Debug {
+                super::printk::_print(
                     record.level().color(),
                     format_args!(
                         "[{}] {}, {}:{}\n",
@@ -25,11 +25,12 @@ impl log::Log for Logger {
                         record.file().unwrap_or("unknown"),
                         record.line().unwrap_or(0)
                     ),
-                ),
-                _ => super::printk::_print(
+                );
+            } else {
+                super::printk::_print(
                     record.level().color(),
-                    format_args!("[{}] {}\n", record.level(), record.args(),),
-                ),
+                    format_args!("[{}] {}\n", record.level(), record.args()),
+                );
             }
         }
     }

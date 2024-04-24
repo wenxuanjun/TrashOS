@@ -62,7 +62,7 @@ impl Scheduler {
     pub fn schedule(&mut self, context: VirtAddr) -> VirtAddr {
         {
             let mut thread = self.current_thread.write();
-            thread.context = Context::copy_from_address(context);
+            thread.context = Context::from_address(context);
         }
 
         self.current_thread = self.get_next();

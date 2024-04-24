@@ -3,8 +3,7 @@ use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::*;
 use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{FrameAllocator, FrameDeallocator};
-use x86_64::structures::paging::{Mapper, PhysFrame};
-use x86_64::structures::paging::{OffsetPageTable, PageTable, PageTableFlags};
+use x86_64::structures::paging::{PhysFrame, PageTable, PageTableFlags};
 use x86_64::structures::paging::{Page, Size1GiB, Size2MiB, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
 
@@ -53,7 +52,7 @@ impl GeneralPageTable {
         };
 
         let mut new_page_table = Self::new(frame_allocator, physical_memory_offset);
-        let target_page_table = new_page_table.inner.level_4_table();
+        let target_page_table = new_page_table.inner.level_4_table_mut();
 
         Self::new_from_recursion(
             frame_allocator,
@@ -89,7 +88,7 @@ impl GeneralPageTable {
                 let virtual_address = physical_memory_offset + entry.addr().as_u64();
                 unsafe { &*virtual_address.as_ptr() }
             };
-            let target_page_table_next = new_page_table.inner.level_4_table();
+            let target_page_table_next = new_page_table.inner.level_4_table_mut();
 
             Self::new_from_recursion(
                 frame_allocator,

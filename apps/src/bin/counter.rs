@@ -12,7 +12,7 @@ fn panic(_info: &PanicInfo) -> ! {
 #[no_mangle]
 unsafe fn _start() -> ! {
     let mut counter = 0;
-    for _ in 1..500 {
+    for _ in 0..500 {
         let mut buf = [0; 7];
         buf[0] = b'[';
         buf[6] = b']';

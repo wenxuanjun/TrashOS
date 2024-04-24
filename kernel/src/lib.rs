@@ -9,8 +9,8 @@ pub mod arch;
 pub mod console;
 pub mod device;
 pub mod memory;
-pub mod task;
 pub mod syscall;
+pub mod task;
 
 extern crate alloc;
 use bootloader_api::BootInfo;

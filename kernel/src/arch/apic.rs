@@ -90,7 +90,7 @@ unsafe fn ioapic_add_entry(irq: IrqVector, vector: InterruptIndex) {
     ioapic.enable_irq(irq as u8);
 }
 
-pub unsafe fn calibrate_timer() {
+unsafe fn calibrate_timer() {
     let mut lapic = LAPIC.try_get().unwrap().lock();
 
     let mut lapic_total_ticks = 0;

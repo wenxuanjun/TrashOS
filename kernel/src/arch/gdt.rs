@@ -43,13 +43,13 @@ impl Selectors {
 static GDT: Lazy<(GlobalDescriptorTable, Selectors)> = Lazy::new(|| {
     let mut gdt = GlobalDescriptorTable::new();
 
-    let code_selector = gdt.add_entry(Descriptor::kernel_code_segment());
-    let data_selector = gdt.add_entry(Descriptor::kernel_data_segment());
+    let code_selector = gdt.append(Descriptor::kernel_code_segment());
+    let data_selector = gdt.append(Descriptor::kernel_data_segment());
 
-    let user_data_selector = gdt.add_entry(Descriptor::user_data_segment());
-    let user_code_selector = gdt.add_entry(Descriptor::user_code_segment());
+    let user_data_selector = gdt.append(Descriptor::user_data_segment());
+    let user_code_selector = gdt.append(Descriptor::user_code_segment());
 
-    let tss_selector = gdt.add_entry(Descriptor::tss_segment(&TSS));
+    let tss_selector = gdt.append(Descriptor::tss_segment(&TSS));
 
     let selectors = Selectors {
         code_selector,
@@ -69,7 +69,7 @@ pub static TSS: Lazy<TaskStateSegment> = Lazy::new(|| {
         const STACK_SIZE: usize = 4096 * 5;
         static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
         let stack_start = VirtAddr::from_ptr(unsafe { core::ptr::addr_of!(STACK) });
-        stack_start + STACK_SIZE
+        stack_start + STACK_SIZE as u64
     };
 
     tss

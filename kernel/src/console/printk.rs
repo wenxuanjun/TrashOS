@@ -55,6 +55,7 @@ impl Color {
             Color::White => [0xff, 0xff, 0xff],
         }
     }
+
     fn get_color_pixel(&self, pixel_format: PixelFormat, intensity: u8) -> [u8; 4] {
         let [r, g, b] = self
             .get_color_rgb()
@@ -140,8 +141,9 @@ impl<'a> fmt::Write for Printk<'a> {
 
 #[inline]
 pub fn _print(color: Color, args: fmt::Arguments) {
-    PRINTK.try_get().unwrap().lock().color = color;
-    PRINTK.try_get().unwrap().lock().write_fmt(args).unwrap();
+    let mut printk = PRINTK.try_get().unwrap().lock();
+    printk.color = color;
+    printk.write_fmt(args).unwrap();
 }
 
 #[macro_export]

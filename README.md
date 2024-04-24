@@ -46,6 +46,6 @@ $ cargo run --release -- --boot --kvm
 - [ ] MLFQ scheduler
 - [ ] Symmetric multiprocessing
 - [ ] PCI support
-- [ ] A simple shell
+- [ ] VT100 codes supported terminal
 - [ ] AHCI support
 - [ ] Filesystem support

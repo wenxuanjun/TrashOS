@@ -12,7 +12,7 @@ fn panic(_info: &PanicInfo) -> ! {
 #[no_mangle]
 unsafe fn _start() {
     let hello = "Hello!";
-    for _ in 1..500 {
+    for _ in 0..500 {
         write(hello.as_ptr(), hello.len());
         for _ in 1..100000 {
             core::arch::asm!("nop");

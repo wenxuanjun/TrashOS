@@ -25,13 +25,10 @@ pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     let mut idt = InterruptDescriptorTable::new();
 
     idt.breakpoint.set_handler_fn(breakpoint);
-    idt[InterruptIndex::ApicError as usize].set_handler_fn(lapic_error);
-    idt[InterruptIndex::ApicSpurious as usize].set_handler_fn(spurious_interrupt);
+    idt[InterruptIndex::ApicError as u8].set_handler_fn(lapic_error);
+    idt[InterruptIndex::ApicSpurious as u8].set_handler_fn(spurious_interrupt);
 
     unsafe {
-        idt[InterruptIndex::Timer as usize]
-            .set_handler_fn(timer_interrupt)
-            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
         idt.page_fault
             .set_handler_fn(page_fault)
             .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
@@ -47,10 +44,13 @@ pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
         idt.invalid_opcode
             .set_handler_fn(invalid_opcode)
             .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
-        idt[InterruptIndex::Keyboard as usize]
+        idt[InterruptIndex::Timer as u8]
+            .set_handler_fn(timer_interrupt)
+            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
+        idt[InterruptIndex::Keyboard as u8]
             .set_handler_fn(keyboard_interrupt)
             .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
-        idt[InterruptIndex::Mouse as usize]
+        idt[InterruptIndex::Mouse as u8]
             .set_handler_fn(mouse_interrupt)
             .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
     }
@@ -131,9 +131,15 @@ extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {
 }
 
 extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error_code: PageFaultErrorCode) {
-    let fault_addr = Cr2::read();
     log::warn!("Exception: Page Fault\n{:#?}", frame);
     log::warn!("Error Code: {:#x}", error_code);
-    log::warn!("Fault Address: {:#x}", fault_addr);
+    match Cr2::read() {
+        Ok(address) => {
+            log::warn!("Fault Address: {:#x}", address);
+        }
+        Err(error) => {
+            log::warn!("Invalid virtual address: {:?}", error);
+        }
+    }
     x86_64::instructions::hlt();
 }

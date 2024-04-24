@@ -78,9 +78,11 @@ impl Thread {
     }
 
     pub fn new_user_thread(process: SharedProcess, entry_point: usize) {
+        /* TODO: Bullshit, should be replaced by ThreadStack */
         const USER_STACK_SIZE: usize = 64 * 1024;
-        let user_stack_end = VirtAddr::new(0x00007fffffffffff);
-        let user_stack_start = user_stack_end - USER_STACK_SIZE as u64 + 1u64;
+        let user_stack_end = VirtAddr::try_new(0x00007ffffffff000).unwrap();
+        let user_stack_start = user_stack_end - USER_STACK_SIZE as u64;
+        let user_stack_end = user_stack_end - 1u64;
 
         let mut thread = Self::new(process.clone(), StackType::User);
         let mut process = process.write();

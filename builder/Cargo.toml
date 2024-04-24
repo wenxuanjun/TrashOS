@@ -5,7 +5,7 @@ version = "0.1.0"
 
 [dependencies]
 ovmf-prebuilt = "0.1.0-alpha.1"
-argh = "0.1.10"
+argh = "0.1.12"
 
 [dependencies.bootloader]
 version = "0.11.7"
