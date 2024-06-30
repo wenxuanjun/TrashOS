@@ -20,7 +20,7 @@ struct Args {
 
     #[argh(switch, short = 's')]
     #[argh(description = "redirect serial to stdio")]
-    serial_stdio: bool,
+    serial: bool,
 }
 
 fn main() {
@@ -51,7 +51,7 @@ fn main() {
         if args.haxm {
             cmd.arg("-accel").arg("hax");
         }
-        if args.serial_stdio {
+        if args.serial {
             cmd.arg("-serial").arg("stdio");
         }
 

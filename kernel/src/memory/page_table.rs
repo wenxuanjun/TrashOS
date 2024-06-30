@@ -1,4 +1,5 @@
 use super::BootInfoFrameAllocator;
+use x86_64::instructions::interrupts;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::*;
 use x86_64::structures::paging::page::PageRangeInclusive;
@@ -130,7 +131,9 @@ impl GeneralPageTable {
             PhysFrame::containing_address(physical_address)
         };
         if page_table_frame != Cr3::read().0 {
-            Cr3::write(page_table_frame, Cr3::read().1);
+            interrupts::without_interrupts(|| {
+                Cr3::write(page_table_frame, Cr3::read().1);
+            });
         }
     }
 }

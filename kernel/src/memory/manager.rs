@@ -15,7 +15,7 @@ pub struct MemoryManager<S: PageSize = Size4KiB> {
 impl<S: PageSize> MemoryManager<S> {
     pub fn alloc_range(
         start_address: VirtAddr,
-        end_address: VirtAddr,
+        length: u64,
         flags: PageTableFlags,
         page_table: &mut GeneralPageTable,
     ) -> Result<(), MapToError<S>>
@@ -25,6 +25,7 @@ impl<S: PageSize> MemoryManager<S> {
     {
         let page_range = {
             let start_page = Page::containing_address(start_address);
+            let end_address = start_address + length.into() - 1u64;
             let end_page = Page::containing_address(end_address);
             Page::range_inclusive(start_page, end_page)
         };

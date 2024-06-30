@@ -1,4 +1,4 @@
-use spin::Lazy;
+use spin::{Lazy, Mutex};
 use x86_64::instructions::segmentation::{Segment, CS, SS};
 use x86_64::instructions::tables::load_tss;
 use x86_64::structures::gdt::GlobalDescriptorTable;
@@ -6,7 +6,8 @@ use x86_64::structures::gdt::{Descriptor, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
 
-pub const GENERAL_INTERRUPT_IST_INDEX: u16 = 0;
+pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
+pub const TIMER_INTERRUPT_IST_INDEX: u16 = 1;
 
 pub fn init() {
     let descriptor_table = &GDT.0;
@@ -49,7 +50,12 @@ static GDT: Lazy<(GlobalDescriptorTable, Selectors)> = Lazy::new(|| {
     let user_data_selector = gdt.append(Descriptor::user_data_segment());
     let user_code_selector = gdt.append(Descriptor::user_code_segment());
 
-    let tss_selector = gdt.append(Descriptor::tss_segment(&TSS));
+    let static_tss_ref = unsafe {
+        let tss_ptr: *const TaskStateSegment = &*TSS.lock();
+        &*tss_ptr
+    };
+
+    let tss_selector = gdt.append(Descriptor::tss_segment(static_tss_ref));
 
     let selectors = Selectors {
         code_selector,
@@ -62,15 +68,15 @@ static GDT: Lazy<(GlobalDescriptorTable, Selectors)> = Lazy::new(|| {
     (gdt, selectors)
 });
 
-pub static TSS: Lazy<TaskStateSegment> = Lazy::new(|| {
+pub static TSS: Lazy<Mutex<TaskStateSegment>> = Lazy::new(|| {
     let mut tss = TaskStateSegment::new();
 
-    tss.interrupt_stack_table[GENERAL_INTERRUPT_IST_INDEX as usize] = {
+    tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX as usize] = {
         const STACK_SIZE: usize = 4096 * 5;
         static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
-        let stack_start = VirtAddr::from_ptr(unsafe { core::ptr::addr_of!(STACK) });
+        let stack_start = VirtAddr::from_ptr(unsafe { STACK.as_ptr() });
         stack_start + STACK_SIZE as u64
     };
 
-    tss
+    Mutex::new(tss)
 });

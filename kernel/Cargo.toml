@@ -14,7 +14,7 @@ pc-keyboard = "0.7.0"
 bootloader_api = "0.11.7"
 acpi = "5.0.0"
 x2apic = "0.4.3"
-bitflags = "2.5.0"
+bitflags = "2.6.0"
 good_memory_allocator = "0.1.7"
 vte = "0.13.0"
 
@@ -32,7 +32,7 @@ features = ["alloc"]
 default-features = false
 
 [dependencies.object]
-version = "0.35.0"
+version = "0.36.1"
 features = ["read_core", "elf", "unaligned"]
 default-features = false
 
@@ -42,5 +42,5 @@ features = ["bold", "size_16", "unicode-basic-latin"]
 default-features = false
 
 [dependencies.log]
-version = "0.4.21"
+version = "0.4.22"
 default-features = false

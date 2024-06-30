@@ -3,15 +3,12 @@ use alloc::sync::Arc;
 use core::fmt::Debug;
 use core::sync::atomic::{AtomicU64, Ordering};
 use spin::RwLock;
-use x86_64::structures::paging::PageTableFlags;
-use x86_64::VirtAddr;
 
 use super::context::Context;
 use super::process::SharedProcess;
 use super::scheduler;
-use super::stack::{StackType, ThreadStack};
+use super::stack::{KernelStack, UserStack};
 use crate::arch::gdt::Selectors;
-use crate::memory::MemoryManager;
 
 pub(super) type SharedThread = Arc<RwLock<Box<Thread>>>;
 
@@ -36,68 +33,52 @@ pub enum ThreadState {
 
 #[allow(dead_code)]
 pub struct Thread {
-    id: ThreadId,
-    state: ThreadState,
-    pub user_stack: ThreadStack,
+    pub id: ThreadId,
+    pub state: ThreadState,
+    pub kernel_stack: KernelStack,
     pub context: Context,
     pub process: SharedProcess,
 }
 
 impl Thread {
-    fn new(process: SharedProcess, stack_type: StackType) -> Box<Self> {
+    pub fn new(process: SharedProcess) -> Box<Self> {
         let thread = Thread {
             id: ThreadId::new(),
             state: ThreadState::Ready,
-            user_stack: ThreadStack::new(stack_type),
             context: Context::default(),
+            kernel_stack: KernelStack::new(),
             process,
         };
 
         Box::new(thread)
     }
 
-    pub fn new_init_thread() -> SharedThread {
-        let process = scheduler::KERNEL_PROCESS.try_get().unwrap();
-        let thread = Self::new(process.clone(), StackType::Empty);
-        let thread = Arc::new(RwLock::new(thread));
-        process.write().threads.push_back(thread.clone());
-
-        thread
-    }
-
     pub fn new_kernel_thread(function: fn()) {
         let process = scheduler::KERNEL_PROCESS.try_get().unwrap();
-        let mut thread = Self::new(process.clone(), StackType::Kernel);
+
+        let mut thread = Self::new(process.clone());
+
         thread.context.init(
             function as usize,
-            thread.user_stack.end_address(),
+            thread.kernel_stack.end_address(),
             Selectors::get_kernel_segments(),
         );
+
         let thread = Arc::new(RwLock::new(thread));
         process.write().threads.push_back(thread);
     }
 
     pub fn new_user_thread(process: SharedProcess, entry_point: usize) {
-        /* TODO: Bullshit, should be replaced by ThreadStack */
-        const USER_STACK_SIZE: usize = 64 * 1024;
-        let user_stack_end = VirtAddr::try_new(0x00007ffffffff000).unwrap();
-        let user_stack_start = user_stack_end - USER_STACK_SIZE as u64;
-        let user_stack_end = user_stack_end - 1u64;
-
-        let mut thread = Self::new(process.clone(), StackType::User);
+        let mut thread = Self::new(process.clone());
         let mut process = process.write();
 
-        <MemoryManager>::alloc_range(
-            user_stack_start,
-            user_stack_end,
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE,
-            &mut process.page_table,
-        )
-        .unwrap();
+        let user_stack = UserStack::new(&mut process.page_table);
 
-        thread
-            .context
-            .init(entry_point, user_stack_end, Selectors::get_user_segments());
+        thread.context.init(
+            entry_point,
+            user_stack.end_address,
+            Selectors::get_user_segments(),
+        );
 
         let thread = Arc::new(RwLock::new(thread));
         process.threads.push_back(thread.clone());

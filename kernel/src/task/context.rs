@@ -1,7 +1,7 @@
 use x86_64::{structures::gdt::SegmentSelector, VirtAddr};
 
-#[repr(packed)]
 #[derive(Debug, Clone, Copy, Default)]
+#[repr(packed)]
 pub struct Context {
     pub r15: usize,
     pub r14: usize,

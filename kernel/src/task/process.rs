@@ -76,16 +76,15 @@ impl ProcessBinary {
         elf_file: &File,
         page_table: &mut GeneralPageTable,
     ) -> Result<(), &'static str> {
-        x86_64::instructions::interrupts::without_interrupts(|| unsafe {
+        unsafe {
             page_table.switch();
             for segment in elf_file.segments() {
                 let segment_start = VirtAddr::new(segment.address() as u64);
-                let segment_end = segment_start + segment.size() as u64 - 1u64;
 
                 let flags = PageTableFlags::PRESENT
                     | PageTableFlags::WRITABLE
                     | PageTableFlags::USER_ACCESSIBLE;
-                <MemoryManager>::alloc_range(segment_start, segment_end, flags, page_table)
+                <MemoryManager>::alloc_range(segment_start, segment.size(), flags, page_table)
                     .expect("Failed to allocate memory for ELF segment!");
 
                 if let Ok(data) = segment.data() {
@@ -96,7 +95,7 @@ impl ProcessBinary {
                 }
             }
             KERNEL_PAGE_TABLE.try_get().unwrap().lock().switch();
-        });
+        };
         Ok(())
     }
 }

@@ -6,7 +6,8 @@ use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::structures::idt::PageFaultErrorCode;
 use x86_64::VirtAddr;
 
-use super::gdt::GENERAL_INTERRUPT_IST_INDEX;
+use super::gdt::DOUBLE_FAULT_IST_INDEX;
+use crate::serial_println;
 use crate::task::scheduler::SCHEDULER;
 
 const INTERRUPT_INDEX_OFFSET: u8 = 32;
@@ -25,34 +26,21 @@ pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     let mut idt = InterruptDescriptorTable::new();
 
     idt.breakpoint.set_handler_fn(breakpoint);
+    idt.segment_not_present.set_handler_fn(segment_not_present);
+    idt.invalid_opcode.set_handler_fn(invalid_opcode);
+    idt.general_protection_fault.set_handler_fn(general_protection_fault);
+    idt.page_fault.set_handler_fn(page_fault);
+
+    idt[InterruptIndex::Timer as u8].set_handler_fn(timer_interrupt);
     idt[InterruptIndex::ApicError as u8].set_handler_fn(lapic_error);
     idt[InterruptIndex::ApicSpurious as u8].set_handler_fn(spurious_interrupt);
+    idt[InterruptIndex::Keyboard as u8].set_handler_fn(keyboard_interrupt);
+    idt[InterruptIndex::Mouse as u8].set_handler_fn(mouse_interrupt);
 
     unsafe {
-        idt.page_fault
-            .set_handler_fn(page_fault)
-            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
-        idt.general_protection_fault
-            .set_handler_fn(general_protection_fault)
-            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
         idt.double_fault
             .set_handler_fn(double_fault)
-            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
-        idt.segment_not_present
-            .set_handler_fn(segment_not_present)
-            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
-        idt.invalid_opcode
-            .set_handler_fn(invalid_opcode)
-            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
-        idt[InterruptIndex::Timer as u8]
-            .set_handler_fn(timer_interrupt)
-            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
-        idt[InterruptIndex::Keyboard as u8]
-            .set_handler_fn(keyboard_interrupt)
-            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
-        idt[InterruptIndex::Mouse as u8]
-            .set_handler_fn(mouse_interrupt)
-            .set_stack_index(GENERAL_INTERRUPT_IST_INDEX);
+            .set_stack_index(DOUBLE_FAULT_IST_INDEX);
     }
 
     return idt;
@@ -133,9 +121,11 @@ extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {
 extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error_code: PageFaultErrorCode) {
     log::warn!("Exception: Page Fault\n{:#?}", frame);
     log::warn!("Error Code: {:#x}", error_code);
+    serial_println!("Exception: Page Fault\n{:#?}", frame);
     match Cr2::read() {
         Ok(address) => {
             log::warn!("Fault Address: {:#x}", address);
+            serial_println!("Fault Address: {:#x}", address);
         }
         Err(error) => {
             log::warn!("Invalid virtual address: {:?}", error);
