@@ -1,7 +1,7 @@
 use alloc::collections::VecDeque;
-use alloc::sync::Arc;
 use conquer_once::spin::OnceCell;
 use spin::RwLock;
+use x86_64::instructions::interrupts;
 use x86_64::VirtAddr;
 
 use crate::arch::gdt::TSS;
@@ -30,16 +30,8 @@ pub struct Scheduler {
 
 impl Scheduler {
     pub fn new() -> Self {
-        // The context will be set in first context switch
-        let init_thread = {
-            let process = KERNEL_PROCESS.try_get().unwrap();
-            let thread = Arc::new(RwLock::new(Thread::new(process.clone())));
-            process.write().threads.push_back(thread.clone());
-            thread
-        };
-
         Self {
-            current_thread: init_thread,
+            current_thread: Thread::new_init_thread(),
             processes: VecDeque::new(),
         }
     }
@@ -51,8 +43,11 @@ impl Scheduler {
 
     pub fn get_next(&mut self) -> SharedThread {
         let process = {
-            let filter = |process: &mut SharedProcess| !process.read().threads.is_empty();
-            let process_index = self.processes.iter_mut().position(filter).unwrap();
+            let process_index = self
+                .processes
+                .iter_mut()
+                .position(|process: &mut SharedProcess| !process.read().threads.is_empty())
+                .unwrap();
             self.processes.remove(process_index).unwrap()
         };
 
@@ -77,9 +72,11 @@ impl Scheduler {
         self.current_thread = self.get_next();
         let next_thread = self.current_thread.read();
         let page_table = &next_thread.process.read().page_table;
-        TSS.lock().privilege_stack_table[0] = next_thread.kernel_stack.end_address();
 
-        unsafe { page_table.switch() }
+        interrupts::without_interrupts(|| {
+            TSS.lock().privilege_stack_table[0] = next_thread.kernel_stack.end_address();
+            unsafe { page_table.switch() }
+        });
 
         next_thread.context.address()
     }

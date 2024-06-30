@@ -53,9 +53,17 @@ impl Thread {
         Box::new(thread)
     }
 
+    pub fn new_init_thread() -> SharedThread {
+        let process = scheduler::KERNEL_PROCESS.try_get().unwrap();
+        let thread = Self::new(process.clone());
+        let thread = Arc::new(RwLock::new(thread));
+        process.write().threads.push_back(thread.clone());
+
+        thread
+    }
+
     pub fn new_kernel_thread(function: fn()) {
         let process = scheduler::KERNEL_PROCESS.try_get().unwrap();
-
         let mut thread = Self::new(process.clone());
 
         thread.context.init(

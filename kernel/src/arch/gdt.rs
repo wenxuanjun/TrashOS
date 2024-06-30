@@ -7,7 +7,6 @@ use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
 
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
-pub const TIMER_INTERRUPT_IST_INDEX: u16 = 1;
 
 pub fn init() {
     let descriptor_table = &GDT.0;

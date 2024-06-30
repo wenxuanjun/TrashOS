@@ -1,6 +1,7 @@
 use core::fmt::{self, Write};
 use spin::{Lazy, Mutex};
 use uart_16550::SerialPort;
+use x86_64::instructions::interrupts;
 
 #[macro_export]
 macro_rules! serial_print {
@@ -15,7 +16,6 @@ macro_rules! serial_println {
 
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
-    use x86_64::instructions::interrupts;
     interrupts::without_interrupts(|| {
         SERIAL.lock().write_fmt(args).unwrap();
     });

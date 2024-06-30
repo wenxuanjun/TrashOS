@@ -2,6 +2,7 @@ use alloc::borrow::Cow;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
+use x86_64::instructions::interrupts;
 use core::fmt::Debug;
 use core::sync::atomic::{AtomicU64, Ordering};
 use object::{File, Object, ObjectSegment};
@@ -76,7 +77,7 @@ impl ProcessBinary {
         elf_file: &File,
         page_table: &mut GeneralPageTable,
     ) -> Result<(), &'static str> {
-        unsafe {
+        interrupts::without_interrupts(|| unsafe {
             page_table.switch();
             for segment in elf_file.segments() {
                 let segment_start = VirtAddr::new(segment.address() as u64);
@@ -95,7 +96,7 @@ impl ProcessBinary {
                 }
             }
             KERNEL_PAGE_TABLE.try_get().unwrap().lock().switch();
-        };
+        });
         Ok(())
     }
 }

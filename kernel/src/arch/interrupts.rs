@@ -7,7 +7,6 @@ use x86_64::structures::idt::PageFaultErrorCode;
 use x86_64::VirtAddr;
 
 use super::gdt::DOUBLE_FAULT_IST_INDEX;
-use crate::serial_println;
 use crate::task::scheduler::SCHEDULER;
 
 const INTERRUPT_INDEX_OFFSET: u8 = 32;
@@ -121,11 +120,9 @@ extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {
 extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error_code: PageFaultErrorCode) {
     log::warn!("Exception: Page Fault\n{:#?}", frame);
     log::warn!("Error Code: {:#x}", error_code);
-    serial_println!("Exception: Page Fault\n{:#?}", frame);
     match Cr2::read() {
         Ok(address) => {
             log::warn!("Fault Address: {:#x}", address);
-            serial_println!("Fault Address: {:#x}", address);
         }
         Err(error) => {
             log::warn!("Invalid virtual address: {:?}", error);

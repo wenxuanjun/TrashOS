@@ -7,17 +7,15 @@ const PORT_READ_TRY_TIMES: u16 = 10_000;
 pub static MOUSE: Lazy<Mutex<Mouse>> = Lazy::new(|| Mutex::new(Mouse::new()));
 
 pub fn init() {
-    x86_64::instructions::interrupts::without_interrupts(|| {
-        let mut mouse = MOUSE.lock();
-        match mouse.init() {
-            Ok(_) => {
-                mouse.set_complete_handler(mouse_complete_handler);
-                log::debug!("Mouse Type: {:?}", mouse.mouse_type);
-                log::info!("Mouse initialized successfully!");
-            }
-            Err(err) => log::error!("Failed to initialize mouse: {}", err),
+    let mut mouse = MOUSE.lock();
+    match mouse.init() {
+        Ok(_) => {
+            mouse.set_complete_handler(mouse_complete_handler);
+            log::debug!("Mouse Type: {:?}", mouse.mouse_type);
+            log::info!("Mouse initialized successfully!");
         }
-    });
+        Err(err) => log::error!("Failed to initialize mouse: {}", err),
+    }
 }
 
 fn mouse_complete_handler(mouse_state: MouseState) {
