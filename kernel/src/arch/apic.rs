@@ -8,7 +8,7 @@ use super::interrupts::InterruptIndex;
 use crate::arch::hpet::HPET;
 use crate::memory::{convert_physical_to_virtual, MemoryManager};
 
-const TIMER_FREQUENCY_HZ: u32 = 250;
+const TIMER_FREQUENCY_HZ: u32 = 200;
 const TIMER_CALIBRATION_ITERATION: u32 = 100;
 const IOAPIC_INTERRUPT_INDEX_OFFSET: u8 = 32;
 

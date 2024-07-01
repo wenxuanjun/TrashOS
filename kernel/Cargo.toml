@@ -17,6 +17,7 @@ x2apic = "0.4.3"
 bitflags = "2.6.0"
 good_memory_allocator = "0.1.7"
 vte = "0.13.0"
+bit_field = "0.10.1"
 
 [dependencies.conquer-once]
 version = "0.4.0"

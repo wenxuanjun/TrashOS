@@ -2,11 +2,11 @@ use alloc::borrow::Cow;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use x86_64::instructions::interrupts;
 use core::fmt::Debug;
 use core::sync::atomic::{AtomicU64, Ordering};
 use object::{File, Object, ObjectSegment};
 use spin::RwLock;
+use x86_64::instructions::interrupts;
 use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 

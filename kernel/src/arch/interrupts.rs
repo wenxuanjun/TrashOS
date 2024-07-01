@@ -27,8 +27,9 @@ pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     idt.breakpoint.set_handler_fn(breakpoint);
     idt.segment_not_present.set_handler_fn(segment_not_present);
     idt.invalid_opcode.set_handler_fn(invalid_opcode);
-    idt.general_protection_fault.set_handler_fn(general_protection_fault);
     idt.page_fault.set_handler_fn(page_fault);
+    idt.general_protection_fault
+        .set_handler_fn(general_protection_fault);
 
     idt[InterruptIndex::Timer as u8].set_handler_fn(timer_interrupt);
     idt[InterruptIndex::ApicError as u8].set_handler_fn(lapic_error);

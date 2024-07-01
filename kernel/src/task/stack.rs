@@ -4,8 +4,8 @@ use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 use crate::memory::{GeneralPageTable, MemoryManager};
 
 const KERNEL_STACK_SIZE: usize = 16 * 1024;
+const USER_STACK_END: usize = 0x0000_7fff_feff_f000;
 const USER_STACK_SIZE: usize = 64 * 1024;
-const USER_STACK_ADDRESS: usize = 0x0000_7fff_feff_f000;
 
 pub struct KernelStack(Box<[u8]>);
 
@@ -26,11 +26,13 @@ pub struct UserStack {
 
 impl UserStack {
     pub fn new(page_table: &mut GeneralPageTable) -> Self {
-        let user_stack_end = VirtAddr::new(USER_STACK_ADDRESS as u64);
+        let user_stack_end = VirtAddr::new(USER_STACK_END as u64);
         let user_stack_start = user_stack_end - USER_STACK_SIZE as u64;
 
-        let flags =
-            PageTableFlags::PRESENT | PageTableFlags::WRITABLE | PageTableFlags::USER_ACCESSIBLE;
+        let flags = PageTableFlags::PRESENT
+            | PageTableFlags::WRITABLE
+            | PageTableFlags::USER_ACCESSIBLE
+            | PageTableFlags::NO_EXECUTE;
 
         <MemoryManager>::alloc_range(user_stack_start, USER_STACK_SIZE as u64, flags, page_table)
             .unwrap();

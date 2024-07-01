@@ -652,6 +652,7 @@ name = "kernel"
 version = "0.1.0"
 dependencies = [
  "acpi",
+ "bit_field",
  "bitflags 2.6.0",
  "bootloader_api",
  "conquer-once",

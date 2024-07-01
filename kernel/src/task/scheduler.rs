@@ -38,7 +38,9 @@ impl Scheduler {
 
     #[inline]
     pub fn add(&mut self, process: SharedProcess) {
-        self.processes.push_back(process);
+        interrupts::without_interrupts(|| {
+            self.processes.push_back(process);
+        });
     }
 
     pub fn get_next(&mut self) -> SharedThread {
@@ -46,7 +48,7 @@ impl Scheduler {
             let process_index = self
                 .processes
                 .iter_mut()
-                .position(|process: &mut SharedProcess| !process.read().threads.is_empty())
+                .position(|process| !process.read().threads.is_empty())
                 .unwrap();
             self.processes.remove(process_index).unwrap()
         };
@@ -73,10 +75,8 @@ impl Scheduler {
         let next_thread = self.current_thread.read();
         let page_table = &next_thread.process.read().page_table;
 
-        interrupts::without_interrupts(|| {
-            TSS.lock().privilege_stack_table[0] = next_thread.kernel_stack.end_address();
-            unsafe { page_table.switch() }
-        });
+        TSS.lock().privilege_stack_table[0] = next_thread.kernel_stack.end_address();
+        interrupts::without_interrupts(|| unsafe { page_table.switch() });
 
         next_thread.context.address()
     }

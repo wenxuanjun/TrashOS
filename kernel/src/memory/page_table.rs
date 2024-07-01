@@ -1,10 +1,10 @@
-use super::BootInfoFrameAllocator;
+use super::BitmapFrameAllocator;
 use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::mapper::*;
 use x86_64::structures::paging::page::PageRangeInclusive;
 use x86_64::structures::paging::{FrameAllocator, FrameDeallocator};
-use x86_64::structures::paging::{PhysFrame, PageTable, PageTableFlags};
 use x86_64::structures::paging::{Page, Size1GiB, Size2MiB, Size4KiB};
+use x86_64::structures::paging::{PageTable, PageTableFlags, PhysFrame};
 use x86_64::{PhysAddr, VirtAddr};
 
 #[derive(Debug)]
@@ -15,11 +15,11 @@ pub struct GeneralPageTable {
 
 impl GeneralPageTable {
     pub unsafe fn new(
-        frame_allocator: &mut BootInfoFrameAllocator,
+        frame_allocator: &mut BitmapFrameAllocator,
         physical_memory_offset: VirtAddr,
     ) -> Self {
         let page_table_address: Option<PhysFrame<Size4KiB>> =
-            BootInfoFrameAllocator::allocate_frame(frame_allocator);
+            BitmapFrameAllocator::allocate_frame(frame_allocator);
 
         let page_table_address = page_table_address
             .expect("Failed to allocate frame for page table!")
@@ -40,7 +40,7 @@ impl GeneralPageTable {
     }
 
     pub unsafe fn new_from(
-        frame_allocator: &mut BootInfoFrameAllocator,
+        frame_allocator: &mut BitmapFrameAllocator,
         physical_address: PhysAddr,
         physical_memory_offset: VirtAddr,
     ) -> GeneralPageTable {
@@ -66,7 +66,7 @@ impl GeneralPageTable {
     }
 
     unsafe fn new_from_recursion(
-        frame_allocator: &mut BootInfoFrameAllocator,
+        frame_allocator: &mut BitmapFrameAllocator,
         source_page_table: &PageTable,
         target_page_table: &mut PageTable,
         page_table_level: u8,
@@ -101,7 +101,7 @@ impl GeneralPageTable {
     }
 
     pub fn new_from_current(
-        frame_allocator: &mut BootInfoFrameAllocator,
+        frame_allocator: &mut BitmapFrameAllocator,
         physical_memory_offset: VirtAddr,
     ) -> Self {
         let physical_address = Cr3::read().0.start_address();

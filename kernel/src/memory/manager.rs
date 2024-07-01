@@ -5,7 +5,7 @@ use x86_64::structures::paging::{Mapper, PageTableFlags};
 use x86_64::structures::paging::{Page, PageSize, Size4KiB};
 use x86_64::{PhysAddr, VirtAddr};
 
-use super::BootInfoFrameAllocator;
+use super::BitmapFrameAllocator;
 use super::GeneralPageTable;
 
 pub struct MemoryManager<S: PageSize = Size4KiB> {
@@ -21,7 +21,7 @@ impl<S: PageSize> MemoryManager<S> {
     ) -> Result<(), MapToError<S>>
     where
         GeneralPageTable: Mapper<S>,
-        BootInfoFrameAllocator: FrameAllocator<S>,
+        BitmapFrameAllocator: FrameAllocator<S>,
     {
         let page_range = {
             let start_page = Page::containing_address(start_address);
@@ -45,7 +45,7 @@ impl<S: PageSize> MemoryManager<S> {
     ) -> Result<(), MapToError<S>>
     where
         GeneralPageTable: Mapper<S>,
-        BootInfoFrameAllocator: FrameAllocator<S>,
+        BitmapFrameAllocator: FrameAllocator<S>,
     {
         let page_table = &mut super::KERNEL_PAGE_TABLE.try_get().unwrap().lock();
         let mut frame_allocator = super::FRAME_ALLOCATOR.try_get().unwrap().lock();
@@ -61,10 +61,10 @@ impl<S: PageSize> MemoryManager<S> {
         page: Page<S>,
         flags: PageTableFlags,
         page_table: &mut GeneralPageTable,
-        frame_allocator: &mut BootInfoFrameAllocator,
+        frame_allocator: &mut BitmapFrameAllocator,
     ) where
         GeneralPageTable: Mapper<S>,
-        BootInfoFrameAllocator: FrameAllocator<S>,
+        BitmapFrameAllocator: FrameAllocator<S>,
     {
         let result = unsafe { page_table.map_to(page, frame, flags, frame_allocator) };
         match result {
