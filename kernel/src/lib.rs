@@ -13,23 +13,14 @@ pub mod syscall;
 pub mod task;
 
 extern crate alloc;
-use bootloader_api::BootInfo;
 
-pub fn init(boot_info: &'static mut BootInfo) {
-    let BootInfo {
-        framebuffer,
-        physical_memory_offset,
-        memory_regions,
-        rsdp_addr,
-        ..
-    } = boot_info;
-
-    console::printk::init(framebuffer);
+pub fn init() {
+    console::printk::init();
     console::log::init();
     arch::gdt::init();
     arch::interrupts::IDT.load();
-    memory::init(physical_memory_offset, memory_regions);
-    arch::acpi::init(rsdp_addr);
+    memory::init();
+    arch::acpi::init();
     arch::hpet::init();
     arch::apic::init();
     device::mouse::init();

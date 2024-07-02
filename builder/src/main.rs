@@ -1,6 +1,6 @@
 use argh::FromArgs;
-use bootloader::UefiBoot;
-use std::path::Path;
+use builder::ImageBuilder;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[derive(FromArgs)]
@@ -24,17 +24,7 @@ struct Args {
 }
 
 fn main() {
-    let img_path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .unwrap()
-        .join("TrashOS.img");
-
-    let kernel_path = Path::new(env!("CARGO_BIN_FILE_KERNEL_kernel"));
-    println!("Building UEFI disk image for kernel at {:#?}", &kernel_path);
-
-    let _ = UefiBoot::new(&kernel_path).create_disk_image(&img_path);
-    println!("Created bootable UEFI disk image at {:#?}", &img_path);
-
+    let img_path = build_img();
     let args: Args = argh::from_env();
 
     if args.boot {
@@ -58,4 +48,26 @@ fn main() {
         let mut child = cmd.spawn().unwrap();
         child.wait().unwrap();
     }
+}
+
+fn build_img() -> PathBuf {
+    let kernel_path = Path::new(env!("CARGO_BIN_FILE_KERNEL_kernel"));
+    println!("Building UEFI disk image for kernel at {:#?}", &kernel_path);
+
+    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let img_path = manifest_dir.parent().unwrap().join("TrashOS.img");
+
+    let limine_elf = manifest_dir.join("BOOTX64.EFI");
+    let limine_config = manifest_dir.join("limine.cfg");
+
+    ImageBuilder::build(
+        kernel_path.to_path_buf(),
+        limine_elf,
+        limine_config,
+        &img_path,
+    )
+    .expect("Failed to build UEFI disk image");
+    println!("Created bootable UEFI disk image at {:#?}", &img_path);
+
+    img_path
 }

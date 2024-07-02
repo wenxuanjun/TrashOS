@@ -1,26 +1,16 @@
 #![no_std]
 #![no_main]
 
-extern crate alloc;
-use bootloader_api::config::{BootloaderConfig, Mapping};
-use bootloader_api::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use kernel::arch::rtc::RtcDateTime;
 use kernel::device::keyboard::print_keypresses;
 use kernel::task::{Process, Thread};
 
-pub static BOOTLOADER_CONFIG: BootloaderConfig = {
-    let mut config = BootloaderConfig::new_default();
-    config.mappings.physical_memory = Some(Mapping::Dynamic);
-    config
-};
+#[no_mangle]
+extern "C" fn _start() -> ! {
+    kernel::init();
 
-entry_point!(main, config = &BOOTLOADER_CONFIG);
-
-fn main(boot_info: &'static mut BootInfo) -> ! {
-    kernel::init(boot_info);
     Thread::new_kernel_thread(print_keypresses);
-
     let current_time = RtcDateTime::new().to_datetime().unwrap();
     log::info!("Current time: {}", current_time);
 

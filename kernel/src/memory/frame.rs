@@ -1,5 +1,6 @@
 use bit_field::BitField;
-use bootloader_api::info::{MemoryRegionKind, MemoryRegions};
+use limine::memory_map::EntryType;
+use limine::response::MemoryMapResponse;
 use x86_64::structures::paging::{FrameAllocator, PhysFrame};
 use x86_64::structures::paging::{FrameDeallocator, Size4KiB};
 use x86_64::PhysAddr;
@@ -38,22 +39,21 @@ pub struct BitmapFrameAllocator {
 }
 
 impl BitmapFrameAllocator {
-    pub fn init(memory_map: &'static mut MemoryRegions) -> Self {
+    pub fn init(memory_map: &MemoryMapResponse) -> Self {
         let memory_size = memory_map
+            .entries()
             .iter()
-            .map(|region| region.end)
+            .map(|region| region.base + region.length)
             .max()
             .expect("No memory regions found!");
 
         let bitmap_size = (memory_size / 4096).div_ceil(8) as usize;
 
         let bitmap_address = memory_map
-            .iter_mut()
-            .find(|region| {
-                region.kind == MemoryRegionKind::Usable
-                    && (region.end - region.start) >= bitmap_size as u64
-            })
-            .map(|region| region.start)
+            .entries()
+            .iter()
+            .find(|region| region.length >= bitmap_size as u64)
+            .map(|region| region.base)
             .expect("No suitable memory region for bitmap!");
 
         let bitmap_buffer = unsafe {
@@ -67,11 +67,12 @@ impl BitmapFrameAllocator {
         let mut next_frame = usize::MAX;
 
         for region in memory_map
+            .entries()
             .iter()
-            .filter(|region| region.kind == MemoryRegionKind::Usable)
+            .filter(|region| region.entry_type == EntryType::USABLE)
         {
-            let start_page_index = region.start.div_ceil(4096) as usize;
-            let frame_count = ((region.end - region.start) / 4096) as usize;
+            let start_page_index = (region.base / 4096) as usize;
+            let frame_count = (region.length / 4096) as usize;
 
             usable_frames += frame_count;
             next_frame = next_frame.min(start_page_index);
@@ -91,6 +92,8 @@ impl BitmapFrameAllocator {
         }
         usable_frames -= bitmap_frame_count;
         (bitmap_frame_start..bitmap_frame_end).for_each(|index| bitmap.set(index, false));
+
+        log::info!("Usable memory: {} KiB", usable_frames * 4);
 
         BitmapFrameAllocator {
             bitmap,

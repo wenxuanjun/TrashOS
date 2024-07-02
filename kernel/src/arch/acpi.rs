@@ -3,14 +3,15 @@ use acpi::InterruptModel;
 use acpi::{AcpiHandler, AcpiTables, HpetInfo, PhysicalMapping};
 use alloc::alloc::Global;
 use alloc::boxed::Box;
-use bootloader_api::info::Optional;
 use conquer_once::spin::OnceCell;
 use core::ptr::NonNull;
-use x86_64::PhysAddr;
+use limine::request::RsdpRequest;
+use x86_64::{PhysAddr, VirtAddr};
 
-use crate::memory::convert_physical_to_virtual;
+use crate::memory::{convert_physical_to_virtual, convert_virtual_to_physical};
 
 pub static ACPI: OnceCell<Acpi> = OnceCell::uninit();
+static RSDP_REQUEST: RsdpRequest = RsdpRequest::new();
 
 #[derive(Clone)]
 struct AcpiMemHandler;
@@ -38,10 +39,15 @@ pub struct Acpi<'a> {
     pub hpet_info: HpetInfo,
 }
 
-pub fn init(rsdp_addr: &Optional<u64>) {
+pub fn init() {
+    let rsdp_response = RSDP_REQUEST.get_response().unwrap();
+
     let acpi_tables = unsafe {
-        let rsdp_addr = rsdp_addr.into_option().unwrap();
-        let tables = AcpiTables::from_rsdp(AcpiMemHandler, rsdp_addr as usize);
+        let rsdp_addr = VirtAddr::new(rsdp_response.address() as u64);
+        let tables = AcpiTables::from_rsdp(
+            AcpiMemHandler,
+            convert_virtual_to_physical(rsdp_addr).as_u64() as usize,
+        );
         Box::leak(Box::new(tables.unwrap()))
     };
 

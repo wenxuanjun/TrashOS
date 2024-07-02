@@ -6,11 +6,14 @@ version = "0.1.0"
 [dependencies]
 ovmf-prebuilt = "0.1.0-alpha.1"
 argh = "0.1.12"
+anyhow = "1.0.32"
+tempfile = "3.3.0"
+gpt = "3.0.0"
 
-[dependencies.bootloader]
-version = "0.11.7"
-features = ["uefi"]
+[dependencies.fatfs]
+version = "0.3.4"
 default-features = false
+features = ["std", "alloc"]
 
 [dependencies.kernel]
 path = "../kernel"

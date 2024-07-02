@@ -1,10 +1,10 @@
-use bootloader_api::info::{FrameBuffer, Optional};
-use bootloader_api::info::{FrameBufferInfo, PixelFormat};
 use conquer_once::spin::OnceCell;
 use core::fmt::{self, Write};
 use noto_sans_mono_bitmap::{get_raster, get_raster_width};
 use noto_sans_mono_bitmap::{FontWeight, RasterHeight};
 use spin::Mutex;
+
+use crate::device::display::{Display, PixelFormat};
 
 const FONT_WEIGHT: FontWeight = FontWeight::Bold;
 const FONT_WIDTH: usize = get_raster_width(FONT_WEIGHT, FONT_HEIGHT);
@@ -13,27 +13,22 @@ pub const DEFAULT_COLOR: Color = Color::White;
 
 static PRINTK: OnceCell<Mutex<Printk>> = OnceCell::uninit();
 
-pub fn init(boot_info: &'static mut Optional<FrameBuffer>) {
-    let frame_buffer = boot_info.as_mut().unwrap();
-
+pub fn init() {
     let printk = Printk {
         row_position: 0,
         column_position: 0,
-        info: frame_buffer.info(),
-        buffer: frame_buffer.buffer_mut(),
         color: DEFAULT_COLOR,
+        display: Display::get(),
     };
 
     PRINTK.try_init_once(|| Mutex::new(printk)).unwrap();
-    PRINTK.try_get().unwrap().lock().clear_screen();
 }
 
-pub struct Printk<'a> {
+pub struct Printk {
     row_position: usize,
     column_position: usize,
-    info: FrameBufferInfo,
-    buffer: &'a mut [u8],
     color: Color,
+    display: Display,
 }
 
 #[derive(Debug)]
@@ -69,25 +64,25 @@ impl Color {
     }
 }
 
-impl<'a> Printk<'a> {
+impl Printk {
     fn draw_pixel(&mut self, x: usize, y: usize, intensity: u8) {
-        let FrameBufferInfo {
+        let Display {
             pixel_format,
             bytes_per_pixel,
             stride,
             ..
-        } = self.info;
+        } = self.display;
 
         let byte_offset = (y * stride + x) * bytes_per_pixel;
         let write_range = byte_offset..(byte_offset + bytes_per_pixel);
 
         let color = self.color.get_color_pixel(pixel_format, intensity);
-        self.buffer[write_range].copy_from_slice(&color[..bytes_per_pixel]);
+        self.display.buffer[write_range].copy_from_slice(&color[..bytes_per_pixel]);
     }
 
     #[inline]
     fn clear_screen(&mut self) {
-        self.buffer.fill(0);
+        self.display.buffer.fill(0);
         self.row_position = 0;
         self.column_position = 0;
     }
@@ -110,10 +105,10 @@ impl<'a> Printk<'a> {
     }
 
     fn write_byte(&mut self, byte: char) {
-        if self.row_position >= self.info.width - FONT_WIDTH {
+        if self.row_position >= self.display.width - FONT_WIDTH {
             self.new_line();
         }
-        if self.column_position >= self.info.height {
+        if self.column_position >= self.display.height {
             self.clear_screen();
         }
         let rendered = get_raster(byte, FONT_WEIGHT, FONT_HEIGHT).unwrap();
@@ -126,7 +121,7 @@ impl<'a> Printk<'a> {
     }
 }
 
-impl<'a> fmt::Write for Printk<'a> {
+impl fmt::Write for Printk {
     fn write_str(&mut self, string: &str) -> fmt::Result {
         for byte in string.chars() {
             match byte {
