@@ -20,8 +20,9 @@ pub fn init() {
     arch::gdt::init();
     arch::interrupts::IDT.load();
     memory::init();
+    arch::smp::init();
     arch::acpi::init();
-    arch::hpet::init();
+    device::hpet::init();
     arch::apic::init();
     device::mouse::init();
     syscall::init();

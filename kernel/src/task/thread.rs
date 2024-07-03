@@ -13,7 +13,7 @@ use crate::arch::gdt::Selectors;
 pub(super) type SharedThread = Arc<RwLock<Box<Thread>>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ThreadId(u64);
+pub struct ThreadId(pub u64);
 
 impl ThreadId {
     fn new() -> Self {

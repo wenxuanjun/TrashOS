@@ -3,7 +3,7 @@ use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::{FrameAllocator, PhysFrame};
 use x86_64::structures::paging::{Mapper, PageTableFlags};
 use x86_64::structures::paging::{Page, PageSize, Size4KiB};
-use x86_64::{PhysAddr, VirtAddr};
+use x86_64::VirtAddr;
 
 use super::BitmapFrameAllocator;
 use super::GeneralPageTable;
@@ -34,25 +34,8 @@ impl<S: PageSize> MemoryManager<S> {
             let frame = frame_allocator
                 .allocate_frame()
                 .expect("Failed to allocate frame!");
-            Self::map_frame_to_page(frame, page, flags, page_table, &mut *frame_allocator);
+            Self::map_frame_to_page(frame, page, flags, page_table, &mut *frame_allocator)?;
         }
-        Ok(())
-    }
-
-    pub fn map_exist(
-        physical_address: PhysAddr,
-        virtual_address: VirtAddr,
-    ) -> Result<(), MapToError<S>>
-    where
-        GeneralPageTable: Mapper<S>,
-        BitmapFrameAllocator: FrameAllocator<S>,
-    {
-        let page_table = &mut super::KERNEL_PAGE_TABLE.try_get().unwrap().lock();
-        let mut frame_allocator = super::FRAME_ALLOCATOR.try_get().unwrap().lock();
-        let page = Page::<S>::containing_address(virtual_address);
-        let frame = PhysFrame::containing_address(physical_address);
-        let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
-        Self::map_frame_to_page(frame, page, flags, page_table, &mut *frame_allocator);
         Ok(())
     }
 
@@ -62,24 +45,15 @@ impl<S: PageSize> MemoryManager<S> {
         flags: PageTableFlags,
         page_table: &mut GeneralPageTable,
         frame_allocator: &mut BitmapFrameAllocator,
-    ) where
+    ) -> Result<(), MapToError<S>>
+    where
         GeneralPageTable: Mapper<S>,
         BitmapFrameAllocator: FrameAllocator<S>,
     {
         let result = unsafe { page_table.map_to(page, frame, flags, frame_allocator) };
         match result {
-            Ok(flush) => flush.flush(),
-            Err(err) => match err {
-                MapToError::FrameAllocationFailed => {
-                    panic!("Failed to allocate frame for page table!");
-                }
-                MapToError::PageAlreadyMapped(frame) => {
-                    crate::serial_println!("Already mapped to frame: {:?}", frame);
-                }
-                MapToError::ParentEntryHugePage => {
-                    crate::serial_println!("Already mapped in a huge page!");
-                }
-            },
-        };
+            Ok(flush) => Ok(flush.flush()),
+            Err(err) => Err(err),
+        }
     }
 }

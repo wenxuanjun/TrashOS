@@ -5,8 +5,8 @@ use x2apic::lapic::{LocalApic, LocalApicBuilder, TimerMode};
 use x86_64::{instructions::port::Port, PhysAddr};
 
 use super::interrupts::InterruptIndex;
-use crate::arch::hpet::HPET;
-use crate::memory::{convert_physical_to_virtual, MemoryManager};
+use crate::device::hpet::HPET;
+use crate::memory::convert_physical_to_virtual;
 
 const TIMER_FREQUENCY_HZ: u32 = 200;
 const TIMER_CALIBRATION_ITERATION: u32 = 100;
@@ -48,7 +48,6 @@ unsafe fn init_apic() {
     let acpi = super::acpi::ACPI.try_get().unwrap();
     let physical_address = PhysAddr::new(acpi.apic_info.local_apic_address as u64);
     let virtual_address = convert_physical_to_virtual(physical_address);
-    <MemoryManager>::map_exist(physical_address, virtual_address).unwrap();
 
     let mut lapic = LocalApicBuilder::new()
         .timer_vector(InterruptIndex::Timer as usize)
@@ -69,7 +68,6 @@ unsafe fn init_ioapic() {
     let acpi = super::acpi::ACPI.try_get().unwrap();
     let physical_address = PhysAddr::new(acpi.apic_info.io_apics[0].address as u64);
     let virtual_address = convert_physical_to_virtual(physical_address);
-    <MemoryManager>::map_exist(physical_address, virtual_address).unwrap();
 
     let mut ioapic = IoApic::new(virtual_address.as_u64());
     ioapic.init(IOAPIC_INTERRUPT_INDEX_OFFSET);

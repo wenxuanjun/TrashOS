@@ -2,14 +2,18 @@
 #![no_main]
 
 use core::panic::PanicInfo;
-use kernel::arch::rtc::RtcDateTime;
 use kernel::device::keyboard::print_keypresses;
+use kernel::device::rtc::RtcDateTime;
 use kernel::task::{Process, Thread};
+use limine::BaseRevision;
+
+#[used]
+#[link_section = ".requests"]
+static BASE_REVISION: BaseRevision = BaseRevision::new();
 
 #[no_mangle]
 extern "C" fn _start() -> ! {
     kernel::init();
-
     Thread::new_kernel_thread(print_keypresses);
     let current_time = RtcDateTime::new().to_datetime().unwrap();
     log::info!("Current time: {}", current_time);

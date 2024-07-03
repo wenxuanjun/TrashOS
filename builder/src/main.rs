@@ -18,6 +18,11 @@ struct Args {
     #[argh(description = "use HAXM acceleration")]
     haxm: bool,
 
+    #[argh(option, short = 'c')]
+    #[argh(default = "2")]
+    #[argh(description = "number of CPU cores")]
+    cores: usize,
+
     #[argh(switch, short = 's')]
     #[argh(description = "redirect serial to stdio")]
     serial: bool,
@@ -34,6 +39,7 @@ fn main() {
         cmd.arg("-machine").arg("q35");
         cmd.arg("-bios").arg(ovmf_prebuilt::ovmf_pure_efi());
         cmd.arg("-drive").arg(drive_config);
+        cmd.arg("-smp").arg(format!("cores={}", args.cores));
 
         if args.kvm {
             cmd.arg("--enable-kvm");

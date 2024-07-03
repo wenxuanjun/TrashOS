@@ -21,7 +21,7 @@ pub(super) type SharedProcess = Arc<RwLock<Box<Process>>>;
 const KERNEL_PROCESS_NAME: &str = "kernel";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct ProcessId(u64);
+struct ProcessId(pub u64);
 
 impl ProcessId {
     fn new() -> Self {
@@ -46,6 +46,7 @@ impl Process {
             page_table: create_page_table_from_kernel(),
             threads: Default::default(),
         };
+
         Box::new(process)
     }
 

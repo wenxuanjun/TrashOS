@@ -1,6 +1,8 @@
 use core::slice::from_raw_parts_mut;
 use limine::request::FramebufferRequest;
 
+#[used]
+#[link_section = ".requests"]
 static FRAMEBUFFER_REQUEST: FramebufferRequest = FramebufferRequest::new();
 
 #[derive(Debug, Clone, Copy)]
@@ -41,18 +43,19 @@ impl Display {
 
         let pitch = frame_buffer.pitch() as usize;
         let bpp = frame_buffer.bpp() as usize;
-        let buffer_size = pitch * height * (bpp / 8);
+        let stride = (pitch / 4) as _;
+        let bytes_per_pixel = (bpp / 8) as _;
+
+        let buffer_size = stride * height * bytes_per_pixel;
         let buffer = unsafe { from_raw_parts_mut(frame_buffer.addr(), buffer_size) };
 
-        let display = Display {
+        Self {
             buffer,
             width,
             height,
-            stride: (pitch / 4) as _,
-            bytes_per_pixel: (bpp / 8) as _,
+            stride,
+            bytes_per_pixel,
             pixel_format,
-        };
-
-        display
+        }
     }
 }

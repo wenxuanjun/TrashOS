@@ -1,3 +1,4 @@
+use crate::serial_println;
 use super::printk::Color;
 
 pub fn init() {
@@ -15,7 +16,20 @@ impl log::Log for Logger {
 
     fn log(&self, record: &log::Record) {
         if self.enabled(record.metadata()) {
-            if record.level() >= log::Level::Debug {
+            if record.level() < log::Level::Debug {
+                serial_println!("[{}] {}", record.level(), record.args());
+                super::printk::_print(
+                    record.level().color(),
+                    format_args!("[{}] {}\n", record.level(), record.args()),
+                );
+            } else {
+                serial_println!(
+                    "[{}] {}, {}:{}",
+                    record.level(),
+                    record.args(),
+                    record.file().unwrap_or("unknown"),
+                    record.line().unwrap_or(0)
+                );
                 super::printk::_print(
                     record.level().color(),
                     format_args!(
@@ -25,11 +39,6 @@ impl log::Log for Logger {
                         record.file().unwrap_or("unknown"),
                         record.line().unwrap_or(0)
                     ),
-                );
-            } else {
-                super::printk::_print(
-                    record.level().color(),
-                    format_args!("[{}] {}\n", record.level(), record.args()),
                 );
             }
         }

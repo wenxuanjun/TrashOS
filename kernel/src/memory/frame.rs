@@ -42,16 +42,19 @@ impl BitmapFrameAllocator {
     pub fn init(memory_map: &MemoryMapResponse) -> Self {
         let memory_size = memory_map
             .entries()
-            .iter()
+            .last()
             .map(|region| region.base + region.length)
-            .max()
             .expect("No memory regions found!");
 
         let bitmap_size = (memory_size / 4096).div_ceil(8) as usize;
 
-        let bitmap_address = memory_map
+        let usable_regions = memory_map
             .entries()
             .iter()
+            .filter(|region| region.entry_type == EntryType::USABLE);
+
+        let bitmap_address = usable_regions
+            .clone()
             .find(|region| region.length >= bitmap_size as u64)
             .map(|region| region.base)
             .expect("No suitable memory region for bitmap!");
@@ -59,18 +62,14 @@ impl BitmapFrameAllocator {
         let bitmap_buffer = unsafe {
             let physical_address = PhysAddr::new(bitmap_address);
             let virtual_address = convert_physical_to_virtual(physical_address).as_u64();
-            core::slice::from_raw_parts_mut(virtual_address as *mut u8, bitmap_size as usize)
+            core::slice::from_raw_parts_mut(virtual_address as *mut u8, bitmap_size)
         };
 
         let mut bitmap = Bitmap::new(bitmap_buffer);
         let mut usable_frames = 0;
         let mut next_frame = usize::MAX;
 
-        for region in memory_map
-            .entries()
-            .iter()
-            .filter(|region| region.entry_type == EntryType::USABLE)
-        {
+        for region in usable_regions {
             let start_page_index = (region.base / 4096) as usize;
             let frame_count = (region.length / 4096) as usize;
 

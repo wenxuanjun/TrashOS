@@ -11,6 +11,9 @@ use x86_64::{PhysAddr, VirtAddr};
 use crate::memory::{convert_physical_to_virtual, convert_virtual_to_physical};
 
 pub static ACPI: OnceCell<Acpi> = OnceCell::uninit();
+
+#[used]
+#[link_section = ".requests"]
 static RSDP_REQUEST: RsdpRequest = RsdpRequest::new();
 
 #[derive(Clone)]

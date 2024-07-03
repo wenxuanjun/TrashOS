@@ -14,9 +14,14 @@ pub use page_table::GeneralPageTable;
 
 pub static KERNEL_PAGE_TABLE: OnceCell<Mutex<GeneralPageTable>> = OnceCell::uninit();
 pub static FRAME_ALLOCATOR: OnceCell<Mutex<BitmapFrameAllocator>> = OnceCell::uninit();
+pub static PHYSICAL_MEMORY_OFFSET: OnceCell<u64> = OnceCell::uninit();
 
-static PHYSICAL_MEMORY_OFFSET: OnceCell<u64> = OnceCell::uninit();
+#[used]
+#[link_section = ".requests"]
 static HHDM_REQUEST: HhdmRequest = HhdmRequest::new();
+
+#[used]
+#[link_section = ".requests"]
 static MEMORY_MAP_REQUEST: MemoryMapRequest = MemoryMapRequest::new();
 
 pub fn init() {
