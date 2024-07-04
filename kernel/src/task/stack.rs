@@ -4,7 +4,7 @@ use x86_64::{structures::paging::PageTableFlags, VirtAddr};
 use crate::memory::{GeneralPageTable, MemoryManager};
 
 const KERNEL_STACK_SIZE: usize = 16 * 1024;
-const USER_STACK_END: usize = 0x0000_7fff_feff_f000;
+const USER_STACK_END: usize = 0x7ffffefff000;
 const USER_STACK_SIZE: usize = 64 * 1024;
 
 pub struct KernelStack(Box<[u8]>);

@@ -46,7 +46,7 @@ unsafe fn disable_pic() {
 
 unsafe fn init_apic() {
     let acpi = super::acpi::ACPI.try_get().unwrap();
-    let physical_address = PhysAddr::new(acpi.apic_info.local_apic_address as u64);
+    let physical_address = PhysAddr::new(acpi.apic.local_apic_address as u64);
     let virtual_address = convert_physical_to_virtual(physical_address);
 
     let mut lapic = LocalApicBuilder::new()
@@ -66,7 +66,7 @@ unsafe fn init_apic() {
 
 unsafe fn init_ioapic() {
     let acpi = super::acpi::ACPI.try_get().unwrap();
-    let physical_address = PhysAddr::new(acpi.apic_info.io_apics[0].address as u64);
+    let physical_address = PhysAddr::new(acpi.apic.io_apics[0].address as u64);
     let virtual_address = convert_physical_to_virtual(physical_address);
 
     let mut ioapic = IoApic::new(virtual_address.as_u64());

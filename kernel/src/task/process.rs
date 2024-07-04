@@ -1,6 +1,6 @@
-use alloc::borrow::Cow;
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;
+use alloc::string::String;
 use alloc::sync::Arc;
 use core::fmt::Debug;
 use core::sync::atomic::{AtomicU64, Ordering};
@@ -33,16 +33,16 @@ impl ProcessId {
 #[allow(dead_code)]
 pub struct Process {
     id: ProcessId,
-    name: Cow<'static, str>,
+    name: String,
     pub page_table: GeneralPageTable,
     pub threads: VecDeque<SharedThread>,
 }
 
 impl Process {
-    pub fn new(name: &'static str) -> Box<Self> {
+    pub fn new(name: &str) -> Box<Self> {
         let process = Process {
             id: ProcessId::new(),
-            name: Cow::Borrowed(name),
+            name: String::from(name),
             page_table: create_page_table_from_kernel(),
             threads: Default::default(),
         };
@@ -54,16 +54,16 @@ impl Process {
         Arc::new(RwLock::new(Self::new(KERNEL_PROCESS_NAME)))
     }
 
-    pub fn new_user_process(
-        name: &'static str,
-        elf_raw_data: &'static [u8],
-    ) -> Result<SharedProcess, &'static str> {
-        let process = Arc::new(RwLock::new(Self::new(name)));
-        let binary = ProcessBinary::parse(elf_raw_data);
-        Thread::new_user_thread(process.clone(), binary.entry() as usize);
-        ProcessBinary::map_segments(&binary, &mut process.write().page_table)?;
-        SCHEDULER.try_get().unwrap().write().add(process.clone());
-        Ok(process)
+    pub fn new_user_process(name: &str, elf_data: &'static [u8]) -> SharedProcess {
+        let procedure = || {
+            let process = Arc::new(RwLock::new(Self::new(name)));
+            let binary = ProcessBinary::parse(elf_data);
+            ProcessBinary::map_segments(&binary, &mut process.write().page_table).unwrap();
+            Thread::new_user_thread(process.clone(), binary.entry() as usize);
+            SCHEDULER.write().add(process.clone());
+            process
+        };
+        interrupts::without_interrupts(|| procedure())
     }
 }
 
@@ -78,26 +78,24 @@ impl ProcessBinary {
         elf_file: &File,
         page_table: &mut GeneralPageTable,
     ) -> Result<(), &'static str> {
-        interrupts::without_interrupts(|| unsafe {
+        unsafe {
             page_table.switch();
             for segment in elf_file.segments() {
-                let segment_start = VirtAddr::new(segment.address() as u64);
+                let segment_address = VirtAddr::new(segment.address() as u64);
 
                 let flags = PageTableFlags::PRESENT
                     | PageTableFlags::WRITABLE
                     | PageTableFlags::USER_ACCESSIBLE;
-                <MemoryManager>::alloc_range(segment_start, segment.size(), flags, page_table)
+
+                <MemoryManager>::alloc_range(segment_address, segment.size(), flags, page_table)
                     .expect("Failed to allocate memory for ELF segment!");
 
                 if let Ok(data) = segment.data() {
-                    let dest_ptr = segment_start.as_u64() as *mut u8;
-                    for (index, value) in data.iter().enumerate() {
-                        core::ptr::write(dest_ptr.add(index), *value);
-                    }
+                    core::ptr::copy(data.as_ptr(), segment.address() as *mut u8, data.len());
                 }
             }
-            KERNEL_PAGE_TABLE.try_get().unwrap().lock().switch();
-        });
+            KERNEL_PAGE_TABLE.lock().switch();
+        };
         Ok(())
     }
 }

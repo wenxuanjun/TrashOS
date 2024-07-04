@@ -119,7 +119,7 @@ impl Mouse {
                 if !self.current_state.flags.contains(MouseFlags::X_OVERFLOW) {
                     self.current_state.move_x = packet as i16;
                     if self.current_state.flags.contains(MouseFlags::X_SIGN) {
-                        self.current_state.move_x = ((packet as u16) | 0xFF00) as i16;
+                        self.current_state.move_x = ((packet as u16) | 0xff00) as i16;
                     }
                 }
             }
@@ -127,7 +127,7 @@ impl Mouse {
                 if !self.current_state.flags.contains(MouseFlags::Y_OVERFLOW) {
                     self.current_state.move_y = packet as i16;
                     if self.current_state.flags.contains(MouseFlags::Y_SIGN) {
-                        self.current_state.move_y = ((packet as u16) | 0xFF00) as i16;
+                        self.current_state.move_y = ((packet as u16) | 0xff00) as i16;
                     }
                 }
             }

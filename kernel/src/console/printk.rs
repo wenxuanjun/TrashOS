@@ -1,8 +1,7 @@
-use conquer_once::spin::OnceCell;
 use core::fmt::{self, Write};
 use noto_sans_mono_bitmap::{get_raster, get_raster_width};
 use noto_sans_mono_bitmap::{FontWeight, RasterHeight};
-use spin::Mutex;
+use spin::{Lazy, Mutex};
 
 use crate::device::display::{Display, PixelFormat};
 
@@ -11,18 +10,14 @@ const FONT_WIDTH: usize = get_raster_width(FONT_WEIGHT, FONT_HEIGHT);
 const FONT_HEIGHT: RasterHeight = RasterHeight::Size16;
 pub const DEFAULT_COLOR: Color = Color::White;
 
-static PRINTK: OnceCell<Mutex<Printk>> = OnceCell::uninit();
-
-pub fn init() {
-    let printk = Printk {
+static PRINTK: Lazy<Mutex<Printk>> = Lazy::new(|| {
+    Mutex::new(Printk {
         row_position: 0,
         column_position: 0,
         color: DEFAULT_COLOR,
         display: Display::get(),
-    };
-
-    PRINTK.try_init_once(|| Mutex::new(printk)).unwrap();
-}
+    })
+});
 
 pub struct Printk {
     row_position: usize,
@@ -136,7 +131,7 @@ impl fmt::Write for Printk {
 
 #[inline]
 pub fn _print(color: Color, args: fmt::Arguments) {
-    let mut printk = PRINTK.try_get().unwrap().lock();
+    let mut printk = PRINTK.lock();
     printk.color = color;
     printk.write_fmt(args).unwrap();
 }

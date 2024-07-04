@@ -1,5 +1,5 @@
 #[naked]
-pub extern "C" fn syscall1(_rax: u64, _rdi: *const u8) -> usize {
+pub extern "C" fn syscall1(_rax: u64, _rdi: usize) -> usize {
     unsafe {
         core::arch::asm!(
             "mov rax, rdi",
@@ -12,7 +12,7 @@ pub extern "C" fn syscall1(_rax: u64, _rdi: *const u8) -> usize {
 }
 
 #[naked]
-pub extern "C" fn syscall2(_rax: u64, _rdi: *const u8, _rsi: usize) -> usize {
+pub extern "C" fn syscall2(_rax: u64, _rdi: usize, _rsi: usize) -> usize {
     unsafe {
         core::arch::asm!(
             "mov rax, rdi",

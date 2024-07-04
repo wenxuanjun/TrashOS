@@ -15,11 +15,10 @@ pub mod task;
 extern crate alloc;
 
 pub fn init() {
-    console::printk::init();
     console::log::init();
     arch::gdt::init();
     arch::interrupts::IDT.load();
-    memory::init();
+    memory::init_heap();
     arch::smp::init();
     arch::acpi::init();
     device::hpet::init();

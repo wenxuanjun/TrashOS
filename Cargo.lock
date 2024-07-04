@@ -21,6 +21,9 @@ checksum = "b3d1d046238990b9cf5bcde22a3fb3584ee5cf65fb2765f454ed428c7a0063da"
 [[package]]
 name = "apps"
 version = "0.1.0"
+dependencies = [
+ "good_memory_allocator",
+]
 
 [[package]]
 name = "argh"

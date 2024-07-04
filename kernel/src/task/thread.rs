@@ -6,7 +6,7 @@ use spin::RwLock;
 
 use super::context::Context;
 use super::process::SharedProcess;
-use super::scheduler;
+use super::scheduler::KERNEL_PROCESS;
 use super::stack::{KernelStack, UserStack};
 use crate::arch::gdt::Selectors;
 
@@ -54,17 +54,15 @@ impl Thread {
     }
 
     pub fn new_init_thread() -> SharedThread {
-        let process = scheduler::KERNEL_PROCESS.try_get().unwrap();
-        let thread = Self::new(process.clone());
+        let thread = Self::new(KERNEL_PROCESS.clone());
         let thread = Arc::new(RwLock::new(thread));
-        process.write().threads.push_back(thread.clone());
+        KERNEL_PROCESS.write().threads.push_back(thread.clone());
 
         thread
     }
 
     pub fn new_kernel_thread(function: fn()) {
-        let process = scheduler::KERNEL_PROCESS.try_get().unwrap();
-        let mut thread = Self::new(process.clone());
+        let mut thread = Self::new(KERNEL_PROCESS.clone());
 
         thread.context.init(
             function as usize,
@@ -73,7 +71,7 @@ impl Thread {
         );
 
         let thread = Arc::new(RwLock::new(thread));
-        process.write().threads.push_back(thread);
+        KERNEL_PROCESS.write().threads.push_back(thread);
     }
 
     pub fn new_user_thread(process: SharedProcess, entry_point: usize) {

@@ -14,14 +14,14 @@ static ALLOCATOR: SpinLockedAllocator = SpinLockedAllocator::empty();
 
 #[alloc_error_handler]
 fn alloc_error_handler(layout: Layout) -> ! {
-    panic!("Global Allocation Error: {:?}", layout)
+    panic!("Kernel heap allocation error: {:?}", layout)
 }
 
 pub fn init_heap() {
     let heap_start = VirtAddr::new(HEAP_START as u64);
 
     let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
-    let mut page_table = KERNEL_PAGE_TABLE.try_get().unwrap().lock();
+    let mut page_table = KERNEL_PAGE_TABLE.lock();
     <MemoryManager>::alloc_range(heap_start, HEAP_SIZE as u64, flags, &mut page_table).unwrap();
 
     unsafe {

@@ -1,6 +1,5 @@
 use alloc::collections::VecDeque;
-use conquer_once::spin::OnceCell;
-use spin::RwLock;
+use spin::{Lazy, RwLock};
 use x86_64::instructions::interrupts;
 use x86_64::VirtAddr;
 
@@ -11,14 +10,11 @@ use super::process::SharedProcess;
 use super::thread::SharedThread;
 use super::{Process, Thread};
 
-pub static SCHEDULER: OnceCell<RwLock<Scheduler>> = OnceCell::uninit();
-pub static KERNEL_PROCESS: OnceCell<SharedProcess> = OnceCell::uninit();
+pub static SCHEDULER: Lazy<RwLock<Scheduler>> = Lazy::new(|| RwLock::new(Scheduler::new()));
+pub static KERNEL_PROCESS: Lazy<SharedProcess> = Lazy::new(|| Process::new_kernel_process());
 
 pub fn init() {
-    let kernel_process = Process::new_kernel_process();
-    KERNEL_PROCESS.init_once(|| kernel_process.clone());
-    SCHEDULER.init_once(|| RwLock::new(Scheduler::new()));
-    SCHEDULER.try_get().unwrap().write().add(kernel_process);
+    SCHEDULER.write().add(KERNEL_PROCESS.clone());
     x86_64::instructions::interrupts::enable();
     log::info!("Scheduler initialized, interrupts enabled!");
 }
@@ -38,9 +34,7 @@ impl Scheduler {
 
     #[inline]
     pub fn add(&mut self, process: SharedProcess) {
-        interrupts::without_interrupts(|| {
-            self.processes.push_back(process);
-        });
+        self.processes.push_back(process);
     }
 
     pub fn get_next(&mut self) -> SharedThread {

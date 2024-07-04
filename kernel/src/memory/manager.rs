@@ -29,7 +29,7 @@ impl<S: PageSize> MemoryManager<S> {
             let end_page = Page::containing_address(end_address);
             Page::range_inclusive(start_page, end_page)
         };
-        let mut frame_allocator = super::FRAME_ALLOCATOR.try_get().unwrap().lock();
+        let mut frame_allocator = super::FRAME_ALLOCATOR.lock();
         for page in page_range {
             let frame = frame_allocator
                 .allocate_frame()

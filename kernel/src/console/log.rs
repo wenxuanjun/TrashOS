@@ -1,5 +1,5 @@
-use crate::serial_println;
 use super::printk::Color;
+use crate::serial_println;
 
 pub fn init() {
     static LOGGER: Logger = Logger;

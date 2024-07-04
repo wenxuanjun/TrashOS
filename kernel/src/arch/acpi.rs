@@ -38,7 +38,7 @@ impl AcpiHandler for AcpiMemHandler {
 
 #[derive(Debug)]
 pub struct Acpi<'a> {
-    pub apic_info: Apic<'a, Global>,
+    pub apic: Apic<'a, Global>,
     pub hpet_info: HpetInfo,
 }
 
@@ -60,16 +60,13 @@ pub fn init() {
         .platform_info()
         .expect("Failed to get platform info!");
 
-    let apic_info = match platform_info.interrupt_model {
-        InterruptModel::Unknown => panic!("No APIC support, cannot continue!"),
+    let apic = match platform_info.interrupt_model {
         InterruptModel::Apic(apic) => apic,
+        InterruptModel::Unknown => panic!("No APIC support, cannot continue!"),
         _ => panic!("ACPI does not have interrupt model info!"),
     };
 
     let hpet_info = HpetInfo::new(acpi_tables).expect("Failed to get HPET info!");
 
-    ACPI.init_once(|| Acpi {
-        apic_info,
-        hpet_info,
-    });
+    ACPI.init_once(|| Acpi { apic, hpet_info });
 }

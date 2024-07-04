@@ -20,8 +20,8 @@ extern "C" fn _start() -> ! {
 
     let hello_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/hello");
     let counter_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/counter");
-    Process::new_user_process("Hello", hello_raw_elf).unwrap();
-    Process::new_user_process("Counter", counter_raw_elf).unwrap();
+    Process::new_user_process("Hello", hello_raw_elf);
+    Process::new_user_process("Counter", counter_raw_elf);
 
     loop {
         x86_64::instructions::hlt();
