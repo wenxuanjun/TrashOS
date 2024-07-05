@@ -1,7 +1,6 @@
-use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::string::String;
-use alloc::sync::Arc;
+use alloc::sync::{Arc, Weak};
 use core::fmt::Debug;
 use core::sync::atomic::{AtomicU64, Ordering};
 use object::{File, Object, ObjectSegment};
@@ -16,7 +15,8 @@ use crate::memory::GeneralPageTable;
 use crate::memory::MemoryManager;
 use crate::memory::{create_page_table_from_kernel, KERNEL_PAGE_TABLE};
 
-pub(super) type SharedProcess = Arc<RwLock<Box<Process>>>;
+pub(super) type SharedProcess = Arc<RwLock<Process>>;
+pub(super) type WeakSharedProcess = Weak<RwLock<Process>>;
 
 const KERNEL_PROCESS_NAME: &str = "kernel";
 
@@ -39,7 +39,7 @@ pub struct Process {
 }
 
 impl Process {
-    pub fn new(name: &str) -> Box<Self> {
+    pub fn new(name: &str) -> Self {
         let process = Process {
             id: ProcessId::new(),
             name: String::from(name),
@@ -47,7 +47,7 @@ impl Process {
             threads: Default::default(),
         };
 
-        Box::new(process)
+        process
     }
 
     pub fn new_kernel_process() -> SharedProcess {
@@ -55,15 +55,12 @@ impl Process {
     }
 
     pub fn new_user_process(name: &str, elf_data: &'static [u8]) -> SharedProcess {
-        let procedure = || {
-            let process = Arc::new(RwLock::new(Self::new(name)));
-            let binary = ProcessBinary::parse(elf_data);
-            ProcessBinary::map_segments(&binary, &mut process.write().page_table).unwrap();
-            Thread::new_user_thread(process.clone(), binary.entry() as usize);
-            SCHEDULER.write().add(process.clone());
-            process
-        };
-        interrupts::without_interrupts(|| procedure())
+        let binary = ProcessBinary::parse(elf_data);
+        let process = Arc::new(RwLock::new(Self::new(name)));
+        ProcessBinary::map_segments(&binary, &mut process.write().page_table);
+        Thread::new_user_thread(Arc::downgrade(&process), binary.entry() as usize);
+        SCHEDULER.write().add(process.clone());
+        process
     }
 }
 
@@ -74,11 +71,8 @@ impl ProcessBinary {
         File::parse(bin).expect("Failed to parse ELF binary!")
     }
 
-    fn map_segments(
-        elf_file: &File,
-        page_table: &mut GeneralPageTable,
-    ) -> Result<(), &'static str> {
-        unsafe {
+    fn map_segments(elf_file: &File, page_table: &mut GeneralPageTable) {
+        interrupts::without_interrupts(|| unsafe {
             page_table.switch();
             for segment in elf_file.segments() {
                 let segment_address = VirtAddr::new(segment.address() as u64);
@@ -95,7 +89,6 @@ impl ProcessBinary {
                 }
             }
             KERNEL_PAGE_TABLE.lock().switch();
-        };
-        Ok(())
+        });
     }
 }

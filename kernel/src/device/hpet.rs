@@ -1,13 +1,12 @@
 use core::{cell::UnsafeCell, ptr};
 use x86_64::PhysAddr;
 
-use crate::arch::acpi::ACPI;
 use crate::memory::convert_physical_to_virtual;
 
 pub static HPET: Hpet = Hpet::uninit();
 
 pub fn init() {
-    let acpi = ACPI.try_get().unwrap();
+    let acpi = &crate::arch::acpi::ACPI;
     let physical_address = PhysAddr::new(acpi.hpet_info.base_address as u64);
     let virtual_address = convert_physical_to_virtual(physical_address);
 

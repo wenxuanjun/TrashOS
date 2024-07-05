@@ -2,6 +2,7 @@ use core::fmt::{self, Write};
 use noto_sans_mono_bitmap::{get_raster, get_raster_width};
 use noto_sans_mono_bitmap::{FontWeight, RasterHeight};
 use spin::{Lazy, Mutex};
+use x86_64::instructions::interrupts;
 
 use crate::device::display::{Display, PixelFormat};
 
@@ -131,9 +132,11 @@ impl fmt::Write for Printk {
 
 #[inline]
 pub fn _print(color: Color, args: fmt::Arguments) {
-    let mut printk = PRINTK.lock();
-    printk.color = color;
-    printk.write_fmt(args).unwrap();
+    interrupts::without_interrupts(|| {
+        let mut printk = PRINTK.lock();
+        printk.color = color;
+        printk.write_fmt(args).unwrap();
+    });
 }
 
 #[macro_export]

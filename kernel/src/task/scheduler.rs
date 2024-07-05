@@ -34,7 +34,9 @@ impl Scheduler {
 
     #[inline]
     pub fn add(&mut self, process: SharedProcess) {
-        self.processes.push_back(process);
+        interrupts::without_interrupts(|| {
+            self.processes.push_back(process);
+        });
     }
 
     pub fn get_next(&mut self) -> SharedThread {
@@ -67,7 +69,8 @@ impl Scheduler {
 
         self.current_thread = self.get_next();
         let next_thread = self.current_thread.read();
-        let page_table = &next_thread.process.read().page_table;
+        let page_table = next_thread.process.upgrade().unwrap();
+        let page_table = &page_table.read().page_table;
 
         TSS.lock().privilege_stack_table[0] = next_thread.kernel_stack.end_address();
         interrupts::without_interrupts(|| unsafe { page_table.switch() });

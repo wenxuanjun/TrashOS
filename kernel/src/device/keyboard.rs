@@ -1,18 +1,14 @@
-use conquer_once::spin::OnceCell;
 use crossbeam_queue::ArrayQueue;
 use pc_keyboard::{layouts, DecodedKey, HandleControl, Keyboard, ScancodeSet1};
+use spin::Lazy;
 
 const SCANCODE_QUEUE_SIZE: usize = 128;
 
-static SCANCODE_QUEUE: OnceCell<ArrayQueue<u8>> = OnceCell::uninit();
+static SCANCODE_QUEUE: Lazy<ArrayQueue<u8>> = Lazy::new(|| ArrayQueue::new(SCANCODE_QUEUE_SIZE));
 
 pub fn add_scancode(scancode: u8) {
-    if let Ok(queue) = SCANCODE_QUEUE.try_get() {
-        if let Err(_) = queue.push(scancode) {
-            crate::println!("Scancode queue full, dropping keyboard input!");
-        }
-    } else {
-        crate::println!("Scancode queue not initialized!");
+    if let Err(_) = SCANCODE_QUEUE.push(scancode) {
+        crate::println!("Scancode queue full, dropping keyboard input!");
     }
 }
 
@@ -23,11 +19,8 @@ pub fn print_keypresses() {
         HandleControl::Ignore,
     );
 
-    SCANCODE_QUEUE.init_once(|| ArrayQueue::new(SCANCODE_QUEUE_SIZE));
-    let scancodes = SCANCODE_QUEUE.try_get().unwrap();
-
     loop {
-        if let Some(scancode) = scancodes.pop() {
+        if let Some(scancode) = SCANCODE_QUEUE.pop() {
             if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
                 if let Some(key) = keyboard.process_keyevent(key_event) {
                     match key {

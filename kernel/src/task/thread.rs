@@ -1,16 +1,15 @@
-use alloc::boxed::Box;
 use alloc::sync::Arc;
 use core::fmt::Debug;
 use core::sync::atomic::{AtomicU64, Ordering};
 use spin::RwLock;
 
 use super::context::Context;
-use super::process::SharedProcess;
+use super::process::WeakSharedProcess;
 use super::scheduler::KERNEL_PROCESS;
 use super::stack::{KernelStack, UserStack};
 use crate::arch::gdt::Selectors;
 
-pub(super) type SharedThread = Arc<RwLock<Box<Thread>>>;
+pub(super) type SharedThread = Arc<RwLock<Thread>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ThreadId(pub u64);
@@ -37,11 +36,11 @@ pub struct Thread {
     pub state: ThreadState,
     pub kernel_stack: KernelStack,
     pub context: Context,
-    pub process: SharedProcess,
+    pub process: WeakSharedProcess,
 }
 
 impl Thread {
-    pub fn new(process: SharedProcess) -> Box<Self> {
+    pub fn new(process: WeakSharedProcess) -> Self {
         let thread = Thread {
             id: ThreadId::new(),
             state: ThreadState::Ready,
@@ -50,11 +49,11 @@ impl Thread {
             process,
         };
 
-        Box::new(thread)
+        thread
     }
 
     pub fn new_init_thread() -> SharedThread {
-        let thread = Self::new(KERNEL_PROCESS.clone());
+        let thread = Self::new(Arc::downgrade(&KERNEL_PROCESS));
         let thread = Arc::new(RwLock::new(thread));
         KERNEL_PROCESS.write().threads.push_back(thread.clone());
 
@@ -62,7 +61,7 @@ impl Thread {
     }
 
     pub fn new_kernel_thread(function: fn()) {
-        let mut thread = Self::new(KERNEL_PROCESS.clone());
+        let mut thread = Self::new(Arc::downgrade(&KERNEL_PROCESS));
 
         thread.context.init(
             function as usize,
@@ -74,10 +73,10 @@ impl Thread {
         KERNEL_PROCESS.write().threads.push_back(thread);
     }
 
-    pub fn new_user_thread(process: SharedProcess, entry_point: usize) {
+    pub fn new_user_thread(process: WeakSharedProcess, entry_point: usize) {
         let mut thread = Self::new(process.clone());
+        let process = process.upgrade().unwrap();
         let mut process = process.write();
-
         let user_stack = UserStack::new(&mut process.page_table);
 
         thread.context.init(

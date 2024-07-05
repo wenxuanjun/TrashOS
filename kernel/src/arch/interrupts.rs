@@ -6,6 +6,7 @@ use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::structures::idt::PageFaultErrorCode;
 use x86_64::VirtAddr;
 
+use super::apic::LAPIC;
 use super::gdt::DOUBLE_FAULT_IST_INDEX;
 use crate::task::scheduler::SCHEDULER;
 
@@ -49,7 +50,7 @@ pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
 #[naked]
 extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
     fn timer_handler(context: VirtAddr) -> VirtAddr {
-        super::apic::end_of_interrupt();
+        unsafe { LAPIC.lock().end_of_interrupt(); }
         SCHEDULER.write().schedule(context)
     }
 
@@ -71,12 +72,12 @@ extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
 
 extern "x86-interrupt" fn lapic_error(_frame: InterruptStackFrame) {
     log::error!("Local APIC error!");
-    super::apic::end_of_interrupt();
+    unsafe { LAPIC.lock().end_of_interrupt(); }
 }
 
 extern "x86-interrupt" fn spurious_interrupt(_frame: InterruptStackFrame) {
     log::debug!("Received spurious interrupt!");
-    super::apic::end_of_interrupt();
+    unsafe { LAPIC.lock().end_of_interrupt(); }
 }
 
 extern "x86-interrupt" fn segment_not_present(frame: InterruptStackFrame, error_code: u64) {
@@ -109,13 +110,13 @@ extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, error_code: u
 extern "x86-interrupt" fn keyboard_interrupt(_frame: InterruptStackFrame) {
     let scancode: u8 = unsafe { PortReadOnly::new(0x60).read() };
     crate::device::keyboard::add_scancode(scancode);
-    super::apic::end_of_interrupt();
+    unsafe { LAPIC.lock().end_of_interrupt(); }
 }
 
 extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {
     let packet = unsafe { PortReadOnly::new(0x60).read() };
     crate::device::mouse::MOUSE.lock().process_packet(packet);
-    super::apic::end_of_interrupt();
+    unsafe { LAPIC.lock().end_of_interrupt(); }
 }
 
 extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error_code: PageFaultErrorCode) {
