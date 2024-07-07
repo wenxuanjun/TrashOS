@@ -14,12 +14,14 @@ pub mod task;
 
 extern crate alloc;
 
+pub static GLOBAL_MUTEX: spin::Mutex<()> = spin::Mutex::new(());
+
 pub fn init() {
     console::log::init();
-    arch::gdt::init();
+    arch::smp::CPUS.lock().init_bsp();
     arch::interrupts::IDT.load();
     memory::init_heap();
-    arch::smp::init();
+    arch::smp::CPUS.lock().init_ap();
     device::hpet::init();
     arch::apic::init();
     device::mouse::init();

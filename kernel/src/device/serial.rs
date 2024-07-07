@@ -17,6 +17,7 @@ macro_rules! serial_println {
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     interrupts::without_interrupts(|| {
+        // let _lock = crate::GLOBAL_MUTEX.lock();
         SERIAL.lock().write_fmt(args).unwrap();
     });
 }

@@ -1,4 +1,5 @@
 use core::marker::PhantomData;
+use x86_64::instructions::interrupts;
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::{FrameAllocator, PhysFrame};
 use x86_64::structures::paging::{Mapper, PageTableFlags};
@@ -23,20 +24,21 @@ impl<S: PageSize> MemoryManager<S> {
         GeneralPageTable: Mapper<S>,
         BitmapFrameAllocator: FrameAllocator<S>,
     {
-        let page_range = {
-            let start_page = Page::containing_address(start_address);
-            let end_address = start_address + length.into() - 1u64;
-            let end_page = Page::containing_address(end_address);
-            Page::range_inclusive(start_page, end_page)
-        };
-        let mut frame_allocator = super::FRAME_ALLOCATOR.lock();
-        for page in page_range {
-            let frame = frame_allocator
-                .allocate_frame()
-                .expect("Failed to allocate frame!");
-            Self::map_frame_to_page(frame, page, flags, page_table, &mut *frame_allocator)?;
-        }
-        Ok(())
+        interrupts::without_interrupts(|| {
+            let page_range = {
+                let start_page = Page::containing_address(start_address);
+                let end_page = Page::containing_address(start_address + length - 1u64);
+                Page::range_inclusive(start_page, end_page)
+            };
+            let mut frame_allocator = super::FRAME_ALLOCATOR.lock();
+            for page in page_range {
+                let frame = frame_allocator
+                    .allocate_frame()
+                    .expect("Failed to allocate frame!");
+                Self::map_frame_to_page(frame, page, flags, page_table, &mut *frame_allocator)?;
+            }
+            Ok(())
+        })
     }
 
     fn map_frame_to_page(

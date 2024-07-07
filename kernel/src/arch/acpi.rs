@@ -3,9 +3,9 @@ use acpi::InterruptModel;
 use acpi::{AcpiHandler, AcpiTables, HpetInfo, PhysicalMapping};
 use alloc::alloc::Global;
 use alloc::boxed::Box;
-use spin::Lazy;
 use core::ptr::NonNull;
 use limine::request::RsdpRequest;
+use spin::Lazy;
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::memory::{convert_physical_to_virtual, convert_virtual_to_physical};

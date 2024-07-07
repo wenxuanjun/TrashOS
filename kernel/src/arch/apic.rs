@@ -1,3 +1,5 @@
+use core::sync::atomic::{AtomicBool, Ordering};
+
 use spin::{Lazy, Mutex};
 use x2apic::ioapic::{IoApic, IrqMode, RedirectionTableEntry};
 use x2apic::lapic::{LocalApic, LocalApicBuilder, TimerMode};
@@ -8,9 +10,11 @@ use super::interrupts::InterruptIndex;
 use crate::device::hpet::HPET;
 use crate::memory::convert_physical_to_virtual;
 
-const TIMER_FREQUENCY_HZ: u32 = 200;
+const TIMER_FREQUENCY_HZ: u32 = 5;
 const TIMER_CALIBRATION_ITERATION: u32 = 100;
 const IOAPIC_INTERRUPT_INDEX_OFFSET: u8 = 32;
+
+pub static APIC_INIT: AtomicBool = AtomicBool::new(false);
 
 pub static LAPIC: Lazy<Mutex<LocalApic>> = Lazy::new(|| unsafe {
     let physical_address = PhysAddr::new(ACPI.apic.local_apic_address as u64);
@@ -55,7 +59,15 @@ pub fn init() {
         ioapic_add_entry(IrqVector::Keyboard, InterruptIndex::Keyboard);
         ioapic_add_entry(IrqVector::Mouse, InterruptIndex::Mouse);
     };
+    APIC_INIT.store(true, Ordering::Relaxed);
     log::info!("APIC initialized successfully!");
+}
+
+#[inline]
+pub fn end_of_interrupt() {
+    unsafe {
+        LAPIC.lock().end_of_interrupt();
+    }
 }
 
 unsafe fn disable_pic() {
@@ -74,7 +86,7 @@ unsafe fn ioapic_add_entry(irq: IrqVector, vector: InterruptIndex) {
     ioapic.enable_irq(irq as u8);
 }
 
-unsafe fn calibrate_timer() {
+pub unsafe fn calibrate_timer() {
     let mut lapic = LAPIC.lock();
 
     let mut lapic_total_ticks = 0;

@@ -133,6 +133,7 @@ impl fmt::Write for Printk {
 #[inline]
 pub fn _print(color: Color, args: fmt::Arguments) {
     interrupts::without_interrupts(|| {
+        // let _lock = crate::GLOBAL_MUTEX.lock();
         let mut printk = PRINTK.lock();
         printk.color = color;
         printk.write_fmt(args).unwrap();

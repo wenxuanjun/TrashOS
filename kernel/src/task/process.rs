@@ -55,12 +55,15 @@ impl Process {
     }
 
     pub fn new_user_process(name: &str, elf_data: &'static [u8]) -> SharedProcess {
-        let binary = ProcessBinary::parse(elf_data);
-        let process = Arc::new(RwLock::new(Self::new(name)));
-        ProcessBinary::map_segments(&binary, &mut process.write().page_table);
-        Thread::new_user_thread(Arc::downgrade(&process), binary.entry() as usize);
-        SCHEDULER.write().add(process.clone());
-        process
+        // let _lock = crate::GLOBAL_MUTEX.lock();
+        interrupts::without_interrupts(|| {
+            let binary = ProcessBinary::parse(elf_data);
+            let process = Arc::new(RwLock::new(Self::new(name)));
+            ProcessBinary::map_segments(&binary, &mut process.write().page_table);
+            Thread::new_user_thread(Arc::downgrade(&process), binary.entry() as usize);
+            SCHEDULER.write().add(process.clone());
+            process
+        })
     }
 }
 

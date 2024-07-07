@@ -40,6 +40,7 @@ fn main() {
         cmd.arg("-bios").arg(ovmf_prebuilt::ovmf_pure_efi());
         cmd.arg("-drive").arg(drive_config);
         cmd.arg("-smp").arg(format!("cores={}", args.cores));
+        cmd.arg("-cpu").arg("qemu64,+x2apic");
 
         if args.kvm {
             cmd.arg("--enable-kvm");

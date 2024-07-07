@@ -8,6 +8,7 @@ use super::process::WeakSharedProcess;
 use super::scheduler::KERNEL_PROCESS;
 use super::stack::{KernelStack, UserStack};
 use crate::arch::gdt::Selectors;
+use crate::memory::KERNEL_PAGE_TABLE;
 
 pub(super) type SharedThread = Arc<RwLock<Thread>>;
 
@@ -66,6 +67,7 @@ impl Thread {
         thread.context.init(
             function as usize,
             thread.kernel_stack.end_address(),
+            KERNEL_PAGE_TABLE.lock().physical_address,
             Selectors::get_kernel_segments(),
         );
 
@@ -82,6 +84,7 @@ impl Thread {
         thread.context.init(
             entry_point,
             user_stack.end_address,
+            process.page_table.physical_address,
             Selectors::get_user_segments(),
         );
 

@@ -1,21 +1,24 @@
+use core::sync::atomic::{AtomicBool, Ordering};
+
 use alloc::collections::VecDeque;
 use spin::{Lazy, RwLock};
 use x86_64::instructions::interrupts;
 use x86_64::VirtAddr;
 
-use crate::arch::gdt::TSS;
-
 use super::context::Context;
 use super::process::SharedProcess;
 use super::thread::SharedThread;
 use super::{Process, Thread};
+use crate::arch::smp::CPUS;
 
+pub static SCHEDULER_INIT: AtomicBool = AtomicBool::new(false);
 pub static SCHEDULER: Lazy<RwLock<Scheduler>> = Lazy::new(|| RwLock::new(Scheduler::new()));
 pub static KERNEL_PROCESS: Lazy<SharedProcess> = Lazy::new(|| Process::new_kernel_process());
 
 pub fn init() {
     SCHEDULER.write().add(KERNEL_PROCESS.clone());
     x86_64::instructions::interrupts::enable();
+    SCHEDULER_INIT.store(true, Ordering::Relaxed);
     log::info!("Scheduler initialized, interrupts enabled!");
 }
 
@@ -67,13 +70,12 @@ impl Scheduler {
             thread.context = Context::from_address(context);
         }
 
+        let _lock = crate::GLOBAL_MUTEX.lock();
         self.current_thread = self.get_next();
         let next_thread = self.current_thread.read();
-        let page_table = next_thread.process.upgrade().unwrap();
-        let page_table = &page_table.read().page_table;
 
-        TSS.lock().privilege_stack_table[0] = next_thread.kernel_stack.end_address();
-        interrupts::without_interrupts(|| unsafe { page_table.switch() });
+        let kernel_address = next_thread.kernel_stack.end_address();
+        CPUS.lock().current_cpu().1.set_ring0_rsp(kernel_address);
 
         next_thread.context.address()
     }

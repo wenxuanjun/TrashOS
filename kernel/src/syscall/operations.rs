@@ -20,6 +20,7 @@ pub fn mmap(address: usize, length: usize) {
     if length == 0 {
         return;
     }
+    let _lock = crate::GLOBAL_MUTEX.lock();
 
     let flags = PageTableFlags::PRESENT
         | PageTableFlags::WRITABLE

@@ -15,6 +15,7 @@ static BASE_REVISION: BaseRevision = BaseRevision::new();
 extern "C" fn _start() -> ! {
     kernel::init();
     Thread::new_kernel_thread(print_keypresses);
+
     let current_time = RtcDateTime::new().to_datetime().unwrap();
     log::info!("Current time: {}", current_time);
 

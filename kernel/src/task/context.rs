@@ -1,8 +1,10 @@
-use x86_64::{structures::gdt::SegmentSelector, VirtAddr};
+use x86_64::structures::gdt::SegmentSelector;
+use x86_64::{PhysAddr, VirtAddr};
 
 #[derive(Debug, Clone, Copy, Default)]
 #[repr(packed)]
 pub struct Context {
+    pub cr3: usize,
     pub r15: usize,
     pub r14: usize,
     pub r13: usize,
@@ -34,11 +36,13 @@ impl Context {
         &mut self,
         entry_point: usize,
         stack_end_address: VirtAddr,
+        page_table_address: PhysAddr,
         segment_selectors: (SegmentSelector, SegmentSelector),
     ) {
         self.rflags = 0x200;
         self.rip = entry_point;
         self.rsp = stack_end_address.as_u64() as usize;
+        self.cr3 = page_table_address.as_u64() as usize;
 
         let (code_selector, data_selector) = segment_selectors;
         self.cs = code_selector.0 as usize;
@@ -76,6 +80,8 @@ macro_rules! push_context {
             push r13
             push r14
             push r15
+            mov r15, cr3
+            push r15
 			"#,
         )
     };
@@ -87,6 +93,8 @@ macro_rules! pop_context {
         concat!(
             r#"
 			pop r15
+            mov cr3, r15
+            pop r15
             pop r14
             pop r13
             pop r12

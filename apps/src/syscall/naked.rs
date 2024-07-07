@@ -1,4 +1,5 @@
 #[naked]
+#[rustfmt::skip]
 pub extern "C" fn syscall0(_rax: u64) -> usize {
     unsafe {
         core::arch::asm!(
