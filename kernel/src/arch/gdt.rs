@@ -1,3 +1,4 @@
+use spin::Lazy;
 use x86_64::instructions::segmentation::{Segment, CS, SS};
 use x86_64::instructions::tables::load_tss;
 use x86_64::structures::gdt::GlobalDescriptorTable;
@@ -5,15 +6,14 @@ use x86_64::structures::gdt::{Descriptor, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
 
-use super::smp::CPUS;
-
 pub const DOUBLE_FAULT_IST_INDEX: usize = 0;
+const FAULT_STACK_SIZE: usize = 256;
 
 pub struct CpuInfo {
-    pub gdt: GlobalDescriptorTable,
-    pub tss: TaskStateSegment,
-    pub selectors: Option<Selectors>,
-    pub double_fault_stack: [u8; 4096],
+    gdt: GlobalDescriptorTable,
+    tss: TaskStateSegment,
+    selectors: Option<Selectors>,
+    fault_stack: [u8; FAULT_STACK_SIZE],
 }
 
 impl CpuInfo {
@@ -22,17 +22,24 @@ impl CpuInfo {
             gdt: GlobalDescriptorTable::new(),
             tss: TaskStateSegment::new(),
             selectors: None,
-            double_fault_stack: [0; 4096],
+            fault_stack: [0; FAULT_STACK_SIZE],
         }
     }
 
     pub fn init(&mut self) {
-        let stack_start = self.double_fault_stack.as_ptr() as u64;
-        let stack_end = VirtAddr::new(stack_start + self.double_fault_stack.len() as u64);
-        log::warn!("stack_end: {:#x}", stack_end.as_u64());
+        let (mut gdt, mut selectors) = COMMON_GDT.clone();
 
-        self.tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX] = stack_end;
-        self.selectors = Some(Selectors::new(&mut self.gdt, &self.tss));
+        self.tss.interrupt_stack_table[DOUBLE_FAULT_IST_INDEX] = {
+            let stack_start = self.fault_stack.as_ptr() as u64;
+            VirtAddr::new(stack_start + self.fault_stack.len() as u64)
+        };
+
+        let tss_ptr: *const _ = &self.tss;
+        let tss_selector = Some(gdt.append(Descriptor::tss_segment(unsafe { &*tss_ptr })));
+        selectors.tss_selector = tss_selector;
+
+        self.gdt = gdt;
+        self.selectors = Some(selectors);
     }
 
     pub fn load(&self) {
@@ -43,7 +50,7 @@ impl CpuInfo {
         unsafe {
             CS::set_reg(selectors.code_selector);
             SS::set_reg(selectors.data_selector);
-            load_tss(selectors.tss_selector);
+            load_tss(selectors.tss_selector.unwrap());
         }
     }
 
@@ -52,49 +59,41 @@ impl CpuInfo {
     }
 }
 
-const CODE_SELECTOR: Descriptor = Descriptor::kernel_code_segment();
-const DATA_SELECTOR: Descriptor = Descriptor::kernel_data_segment();
-const USER_DATA_SELECTOR: Descriptor = Descriptor::user_data_segment();
-const USER_CODE_SELECTOR: Descriptor = Descriptor::user_code_segment();
+static COMMON_GDT: Lazy<(GlobalDescriptorTable, Selectors)> = Lazy::new(|| {
+    let mut gdt = GlobalDescriptorTable::new();
 
+    let code_selector = gdt.append(Descriptor::kernel_code_segment());
+    let data_selector = gdt.append(Descriptor::kernel_data_segment());
+    let user_data_selector = gdt.append(Descriptor::user_data_segment());
+    let user_code_selector = gdt.append(Descriptor::user_code_segment());
+
+    let selectors = Selectors {
+        code_selector,
+        data_selector,
+        user_data_selector,
+        user_code_selector,
+        tss_selector: None,
+    };
+
+    (gdt, selectors)
+});
+
+#[derive(Clone)]
 pub struct Selectors {
     code_selector: SegmentSelector,
     data_selector: SegmentSelector,
     user_code_selector: SegmentSelector,
     user_data_selector: SegmentSelector,
-    tss_selector: SegmentSelector,
+    tss_selector: Option<SegmentSelector>,
 }
 
 impl Selectors {
-    pub fn new(gdt: &mut GlobalDescriptorTable, tss: &TaskStateSegment) -> Self {
-        let code_selector = gdt.append(CODE_SELECTOR);
-        let data_selector = gdt.append(DATA_SELECTOR);
-        let user_data_selector = gdt.append(USER_DATA_SELECTOR);
-        let user_code_selector = gdt.append(USER_CODE_SELECTOR);
-
-        let tss_ptr: *const _ = tss;
-        log::warn!("tss_ptr: {:#x}", tss_ptr as u64);
-        let tss_selector = gdt.append(Descriptor::tss_segment(unsafe { &*tss_ptr }));
-
-        let selectors = Self {
-            code_selector,
-            data_selector,
-            user_code_selector,
-            user_data_selector,
-            tss_selector,
-        };
-
-        selectors
-    }
-
     pub fn get_kernel_segments() -> (SegmentSelector, SegmentSelector) {
-        let mut bsp_cpu = CPUS.lock();
-        let selectors = &bsp_cpu.bsp_cpu().selectors.as_ref().unwrap();
+        let selectors = &COMMON_GDT.1;
         (selectors.code_selector, selectors.data_selector)
     }
     pub fn get_user_segments() -> (SegmentSelector, SegmentSelector) {
-        let mut bsp_cpu = CPUS.lock();
-        let selectors = &bsp_cpu.bsp_cpu().selectors.as_ref().unwrap();
+        let selectors = &COMMON_GDT.1;
         (selectors.user_code_selector, selectors.user_data_selector)
     }
 }

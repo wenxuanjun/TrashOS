@@ -15,7 +15,7 @@ fn alloc_error_handler(layout: Layout) -> ! {
 }
 
 pub fn init_heap() {
-    syscall::mmap(HEAP_START, HEAP_SIZE);
+    syscall::malloc(HEAP_START, HEAP_SIZE);
     unsafe {
         ALLOCATOR.init(HEAP_START, HEAP_SIZE);
     }

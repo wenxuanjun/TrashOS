@@ -1,16 +1,19 @@
-use alloc::sync::Arc;
+use alloc::boxed::Box;
+use alloc::sync::{Arc, Weak};
 use core::fmt::Debug;
 use core::sync::atomic::{AtomicU64, Ordering};
 use spin::RwLock;
+use x86_64::instructions::interrupts;
 
 use super::context::Context;
-use super::process::WeakSharedProcess;
-use super::scheduler::KERNEL_PROCESS;
+use super::process::{WeakSharedProcess, KERNEL_PROCESS};
+use super::scheduler::SCHEDULER;
 use super::stack::{KernelStack, UserStack};
 use crate::arch::gdt::Selectors;
-use crate::memory::KERNEL_PAGE_TABLE;
+use crate::memory::{ExtendedPageTable, KERNEL_PAGE_TABLE};
 
-pub(super) type SharedThread = Arc<RwLock<Thread>>;
+pub(super) type SharedThread = Arc<RwLock<Box<Thread>>>;
+pub(super) type WeakSharedThread = Weak<RwLock<Box<Thread>>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ThreadId(pub u64);
@@ -22,19 +25,8 @@ impl ThreadId {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-pub enum ThreadState {
-    Running,
-    Ready,
-    Blocked,
-    Waiting,
-    Terminated,
-}
-
-#[allow(dead_code)]
 pub struct Thread {
     pub id: ThreadId,
-    pub state: ThreadState,
     pub kernel_stack: KernelStack,
     pub context: Context,
     pub process: WeakSharedProcess,
@@ -44,7 +36,6 @@ impl Thread {
     pub fn new(process: WeakSharedProcess) -> Self {
         let thread = Thread {
             id: ThreadId::new(),
-            state: ThreadState::Ready,
             context: Context::default(),
             kernel_stack: KernelStack::new(),
             process,
@@ -53,12 +44,11 @@ impl Thread {
         thread
     }
 
-    pub fn new_init_thread() -> SharedThread {
+    pub fn get_init_thread() -> WeakSharedThread {
         let thread = Self::new(Arc::downgrade(&KERNEL_PROCESS));
-        let thread = Arc::new(RwLock::new(thread));
+        let thread = Arc::new(RwLock::new(Box::new(thread)));
         KERNEL_PROCESS.write().threads.push_back(thread.clone());
-
-        thread
+        Arc::downgrade(&thread)
     }
 
     pub fn new_kernel_thread(function: fn()) {
@@ -67,12 +57,16 @@ impl Thread {
         thread.context.init(
             function as usize,
             thread.kernel_stack.end_address(),
-            KERNEL_PAGE_TABLE.lock().physical_address,
+            KERNEL_PAGE_TABLE.lock().physical_address(),
             Selectors::get_kernel_segments(),
         );
 
-        let thread = Arc::new(RwLock::new(thread));
-        KERNEL_PROCESS.write().threads.push_back(thread);
+        let thread = Arc::new(RwLock::new(Box::new(thread)));
+        KERNEL_PROCESS.write().threads.push_back(thread.clone());
+
+        interrupts::without_interrupts(|| {
+            SCHEDULER.lock().add(Arc::downgrade(&thread));
+        });
     }
 
     pub fn new_user_thread(process: WeakSharedProcess, entry_point: usize) {
@@ -84,11 +78,13 @@ impl Thread {
         thread.context.init(
             entry_point,
             user_stack.end_address,
-            process.page_table.physical_address,
+            process.page_table.physical_address(),
             Selectors::get_user_segments(),
         );
 
-        let thread = Arc::new(RwLock::new(thread));
+        let thread = Arc::new(RwLock::new(Box::new(thread)));
         process.threads.push_back(thread.clone());
+
+        SCHEDULER.lock().add(Arc::downgrade(&thread));
     }
 }

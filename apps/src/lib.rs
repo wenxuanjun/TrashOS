@@ -24,6 +24,6 @@ unsafe extern "sysv64" fn _start() -> ! {
     main();
 
     loop {
-        syscall::halt();
+        core::arch::asm!("nop");
     }
 }

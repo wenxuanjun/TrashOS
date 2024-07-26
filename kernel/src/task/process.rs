@@ -1,22 +1,24 @@
+use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
+use x86_64::structures::paging::OffsetPageTable;
 use core::fmt::Debug;
 use core::sync::atomic::{AtomicU64, Ordering};
 use object::{File, Object, ObjectSegment};
-use spin::RwLock;
+use spin::{Lazy, RwLock};
 use x86_64::instructions::interrupts;
-use x86_64::structures::paging::PageTableFlags;
 use x86_64::VirtAddr;
 
-use super::scheduler::SCHEDULER;
 use super::thread::{SharedThread, Thread};
-use crate::memory::GeneralPageTable;
-use crate::memory::MemoryManager;
-use crate::memory::{create_page_table_from_kernel, KERNEL_PAGE_TABLE};
+use crate::memory::{ExtendedPageTable, MappingType, MemoryManager};
+use crate::memory::create_page_table_from_kernel;
 
-pub(super) type SharedProcess = Arc<RwLock<Process>>;
-pub(super) type WeakSharedProcess = Weak<RwLock<Process>>;
+pub(super) type SharedProcess = Arc<RwLock<Box<Process>>>;
+pub(super) type WeakSharedProcess = Weak<RwLock<Box<Process>>>;
+
+static PROCESSES: RwLock<VecDeque<SharedProcess>> = RwLock::new(VecDeque::new());
+pub static KERNEL_PROCESS: Lazy<SharedProcess> = Lazy::new(|| Process::new_kernel_process());
 
 const KERNEL_PROCESS_NAME: &str = "kernel";
 
@@ -34,7 +36,7 @@ impl ProcessId {
 pub struct Process {
     id: ProcessId,
     name: String,
-    pub page_table: GeneralPageTable,
+    pub page_table: OffsetPageTable<'static>,
     pub threads: VecDeque<SharedThread>,
 }
 
@@ -51,19 +53,19 @@ impl Process {
     }
 
     pub fn new_kernel_process() -> SharedProcess {
-        Arc::new(RwLock::new(Self::new(KERNEL_PROCESS_NAME)))
+        let process = Arc::new(RwLock::new(Box::new(Self::new(KERNEL_PROCESS_NAME))));
+        PROCESSES.write().push_back(process.clone());
+        process
     }
 
-    pub fn new_user_process(name: &str, elf_data: &'static [u8]) -> SharedProcess {
-        // let _lock = crate::GLOBAL_MUTEX.lock();
+    pub fn new_user_process(name: &str, elf_data: &'static [u8]) {
+        let binary = ProcessBinary::parse(elf_data);
         interrupts::without_interrupts(|| {
-            let binary = ProcessBinary::parse(elf_data);
-            let process = Arc::new(RwLock::new(Self::new(name)));
+            let process = Arc::new(RwLock::new(Box::new(Self::new(name))));
             ProcessBinary::map_segments(&binary, &mut process.write().page_table);
             Thread::new_user_thread(Arc::downgrade(&process), binary.entry() as usize);
-            SCHEDULER.write().add(process.clone());
-            process
-        })
+            PROCESSES.write().push_back(process.clone());
+        });
     }
 }
 
@@ -71,27 +73,24 @@ struct ProcessBinary;
 
 impl ProcessBinary {
     fn parse(bin: &'static [u8]) -> File<'static> {
-        File::parse(bin).expect("Failed to parse ELF binary!")
+        File::parse(bin).expect("Failed to parse ELF binary")
     }
 
-    fn map_segments(elf_file: &File, page_table: &mut GeneralPageTable) {
-        interrupts::without_interrupts(|| unsafe {
-            page_table.switch();
-            for segment in elf_file.segments() {
-                let segment_address = VirtAddr::new(segment.address() as u64);
+    fn map_segments(elf_file: &File, page_table: &mut OffsetPageTable<'static>) {
+        for segment in elf_file.segments() {
+            MemoryManager::alloc_range(
+                VirtAddr::new(segment.address() as u64),
+                segment.size(),
+                MappingType::UserCode.flags(),
+                page_table,
+            )
+            .expect("Failed to allocate memory for ELF segment");
 
-                let flags = PageTableFlags::PRESENT
-                    | PageTableFlags::WRITABLE
-                    | PageTableFlags::USER_ACCESSIBLE;
-
-                <MemoryManager>::alloc_range(segment_address, segment.size(), flags, page_table)
-                    .expect("Failed to allocate memory for ELF segment!");
-
-                if let Ok(data) = segment.data() {
-                    core::ptr::copy(data.as_ptr(), segment.address() as *mut u8, data.len());
-                }
+            if let Ok(data) = segment.data() {
+                page_table
+                    .write_to_mapped_address(data, VirtAddr::new(segment.address()))
+                    .expect("Failed to write ELF segment to memory");
             }
-            KERNEL_PAGE_TABLE.lock().switch();
-        });
+        }
     }
 }

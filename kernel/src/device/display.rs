@@ -1,5 +1,6 @@
 use core::slice::from_raw_parts_mut;
 use limine::request::FramebufferRequest;
+use os_terminal::DrawTarget;
 
 #[used]
 #[link_section = ".requests"]
@@ -14,16 +15,16 @@ pub enum PixelFormat {
 }
 
 pub struct Display {
-    pub buffer: &'static mut [u8],
-    pub width: usize,
-    pub height: usize,
-    pub stride: usize,
-    pub bytes_per_pixel: usize,
-    pub pixel_format: PixelFormat,
+    buffer: &'static mut [u8],
+    width: usize,
+    height: usize,
+    stride: usize,
+    bytes_per_pixel: usize,
+    pixel_format: PixelFormat,
 }
 
 impl Display {
-    pub fn get() -> Self {
+    pub fn new() -> Self {
         let response = FRAMEBUFFER_REQUEST.get_response().unwrap();
         let frame_buffer = response.framebuffers().next().take().unwrap();
 
@@ -57,5 +58,25 @@ impl Display {
             bytes_per_pixel,
             pixel_format,
         }
+    }
+}
+
+impl DrawTarget for Display {
+    fn size(&self) -> (usize, usize) {
+        (self.width, self.height)
+    }
+
+    fn draw_pixel(&mut self, x: usize, y: usize, color: (u8, u8, u8)) {
+        let byte_offset = (y * self.stride + x) * self.bytes_per_pixel;
+        let write_range = byte_offset..(byte_offset + self.bytes_per_pixel);
+
+        let color = match self.pixel_format {
+            PixelFormat::Rgb => [color.0, color.1, color.2, 0],
+            PixelFormat::Bgr => [color.2, color.1, color.0, 0],
+            PixelFormat::U8 => unimplemented!(),
+            PixelFormat::Unknown => return,
+        };
+
+        self.buffer[write_range].copy_from_slice(&color[..self.bytes_per_pixel]);
     }
 }

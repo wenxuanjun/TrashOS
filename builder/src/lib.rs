@@ -1,5 +1,6 @@
 use anyhow::Context;
 use fatfs::Dir;
+use flate2::{Compression, GzBuilder};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -7,9 +8,9 @@ use std::{fs, io};
 use std::{io::Seek, io::SeekFrom};
 use tempfile::NamedTempFile;
 
-const KERNEL_FILE_NAME: &str = "kernel";
-const LIMINE_EFI_FILE_NAME: &str = "efi/boot/bootx64.efi";
-const LIMINE_CONFIG_FILE_NAME: &str = "limine.cfg";
+const KERNEL: &str = "kernel.gz";
+const LIMINE_EFI: &str = "efi/boot/bootx64.efi";
+const LIMINE_CONFIG: &str = "limine.cfg";
 
 pub struct ImageBuilder;
 
@@ -20,10 +21,16 @@ impl ImageBuilder {
         limine_config: PathBuf,
         image_path: &Path,
     ) -> anyhow::Result<()> {
+        let mut encoder = GzBuilder::new().read(File::open(kernel)?, Compression::best());
+        let compressed_kernel = NamedTempFile::new().context("failed to create temp file")?;
+
+        let kernel_path = compressed_kernel.path().to_owned();
+        io::copy(&mut encoder, &mut File::create(kernel_path.clone())?).unwrap();
+
         let mut files = BTreeMap::new();
-        files.insert(KERNEL_FILE_NAME.into(), kernel);
-        files.insert(LIMINE_EFI_FILE_NAME, limine_elf);
-        files.insert(LIMINE_CONFIG_FILE_NAME, limine_config);
+        files.insert(KERNEL.into(), kernel_path);
+        files.insert(LIMINE_EFI, limine_elf);
+        files.insert(LIMINE_CONFIG, limine_config);
 
         let fat_partition = NamedTempFile::new().context("failed to create temp file")?;
         FatBuilder::create(files, fat_partition.path())
@@ -119,7 +126,7 @@ impl DiskCreator {
         let partition_size: u64 = fs::metadata(fat_image)
             .context("failed to read metadata of fat image")?
             .len();
-        let disk_size = partition_size + 1024 * 64; // for GPT headers
+        let disk_size = partition_size + 1024 * 64;
         disk.set_len(disk_size)
             .context("failed to set GPT image file length")?;
 
@@ -151,14 +158,11 @@ impl DiskCreator {
             .context("failed to get start offset of boot partition")?;
 
         gpt.write().context("failed to write out GPT changes")?;
+
         disk.seek(SeekFrom::Start(start_offset))
             .context("failed to seek to start offset")?;
-
-        io::copy(
-            &mut File::open(fat_image).context("failed to open FAT image")?,
-            &mut disk,
-        )
-        .context("failed to copy FAT image to GPT disk")?;
+        let mut fat_image = File::open(fat_image).context("failed to open FAT image")?;
+        io::copy(&mut fat_image, &mut disk).context("failed to copy FAT image to GPT disk")?;
 
         Ok(())
     }

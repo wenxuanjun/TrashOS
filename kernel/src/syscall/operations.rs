@@ -1,7 +1,7 @@
 use core::{slice, str};
-use x86_64::{structures::paging::PageTableFlags, VirtAddr};
+use x86_64::{structures::paging::OffsetPageTable, VirtAddr};
 
-use crate::memory::{GeneralPageTable, MemoryManager};
+use crate::memory::{ExtendedPageTable, MappingType, MemoryManager};
 
 pub fn write(buffer: *const u8, length: usize) {
     if length == 0 {
@@ -16,20 +16,16 @@ pub fn write(buffer: *const u8, length: usize) {
     };
 }
 
-pub fn mmap(address: usize, length: usize) {
+pub fn malloc(address: usize, length: usize) {
     if length == 0 {
         return;
     }
-    let _lock = crate::GLOBAL_MUTEX.lock();
 
-    let flags = PageTableFlags::PRESENT
-        | PageTableFlags::WRITABLE
-        | PageTableFlags::USER_ACCESSIBLE
-        | PageTableFlags::NO_EXECUTE;
-
-    let address = VirtAddr::new(address as u64);
-    let mut page_table = unsafe { GeneralPageTable::ref_from_current() };
-
-    MemoryManager::alloc_range(address, length as u64, flags, &mut page_table)
-        .expect("Failed to allocate memory for mmap!");
+    MemoryManager::alloc_range(
+        VirtAddr::new(address as u64),
+        length as u64,
+        MappingType::UserData.flags(),
+        &mut unsafe { OffsetPageTable::ref_from_current() },
+    )
+    .expect("Failed to allocate memory for mmap");
 }

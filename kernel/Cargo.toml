@@ -9,7 +9,7 @@ forced-target = "x86_64-unknown-none"
 [dependencies]
 x86_64 = "0.15.1"
 spin = "0.9.8"
-uart_16550 = "0.3.0"
+uart_16550 = "0.3.1"
 pc-keyboard = "0.7.0"
 acpi = "5.0.0"
 x2apic = "0.4.3"
@@ -17,6 +17,8 @@ bitflags = "2.6.0"
 good_memory_allocator = "0.1.7"
 bit_field = "0.10.2"
 limine = "0.2.0"
+colorz = "1.1.2"
+os-terminal = "0.1.1"
 
 [dependencies.time]
 version = "0.3.36"
@@ -34,7 +36,7 @@ default-features = false
 
 [dependencies.noto-sans-mono-bitmap]
 version = "0.3.0"
-features = ["bold", "size_16", "unicode-basic-latin"]
+features = ["bold", "size_20", "unicode-basic-latin"]
 default-features = false
 
 [dependencies.log]

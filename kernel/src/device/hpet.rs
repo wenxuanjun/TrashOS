@@ -1,82 +1,64 @@
-use core::{cell::UnsafeCell, ptr};
+use core::ptr::{read_volatile, write_volatile};
+use spin::Lazy;
 use x86_64::PhysAddr;
 
-use crate::memory::convert_physical_to_virtual;
+use crate::{arch::acpi::ACPI, memory::convert_physical_to_virtual};
 
-pub static HPET: Hpet = Hpet::uninit();
-
-pub fn init() {
-    let acpi = &crate::arch::acpi::ACPI;
-    let physical_address = PhysAddr::new(acpi.hpet_info.base_address as u64);
+pub static HPET: Lazy<Hpet> = Lazy::new(|| {
+    let physical_address = PhysAddr::new(ACPI.hpet_info.base_address as u64);
     let virtual_address = convert_physical_to_virtual(physical_address);
 
-    HPET.init(virtual_address.as_u64());
-    HPET.enable_counter();
-
-    log::debug!("HPET clock speed: {} femto seconds", HPET.clock_speed());
-    log::debug!("HPET timers: {} available", HPET.timers_count());
-}
+    let hpet = Hpet::new(virtual_address.as_u64());
+    hpet.enable_counter();
+    hpet
+});
 
 pub struct Hpet {
-    base_addr: UnsafeCell<u64>,
+    base_address: u64,
+    fms_per_tick: u32,
 }
 
 impl Hpet {
     #[inline]
-    pub const fn uninit() -> Self {
-        Hpet {
-            base_addr: UnsafeCell::new(0),
-        }
-    }
-
-    pub fn init(&self, base_addr: u64) {
-        unsafe {
-            self.base_addr.get().write(base_addr);
-        }
-    }
-
-    pub fn clock_speed(&self) -> u32 {
-        unsafe {
-            let base_addr = *self.base_addr.get();
-            let value = ptr::read_volatile(base_addr as *const u64);
+    pub fn new(base_address: u64) -> Self {
+        let fms_per_tick = unsafe {
+            let value = read_volatile(base_address as *const u64);
             (value >> 32) as u32
+        };
+
+        Self {
+            base_address,
+            fms_per_tick,
         }
     }
 
-    pub fn timers_count(&self) -> u32 {
+    #[inline]
+    pub fn elapsed_ns(&self) -> u64 {
+        let elapsed_fms = self.elapsed_ticks() * self.fms_per_tick as u64;
+        elapsed_fms / 1_000_000
+    }
+
+    fn enable_counter(&self) {
         unsafe {
-            let base_addr = *self.base_addr.get();
-            let value = ptr::read_volatile(base_addr as *const u64);
-            (((value >> 8) & 0b11111) + 1) as u32
+            let configuration_addr = self.base_address + 0x10;
+            let old = read_volatile(configuration_addr as *const u64);
+            write_volatile(configuration_addr as *mut u64, old | 1);
         }
     }
 
-    pub fn enable_counter(&self) {
+    fn elapsed_ticks(&self) -> u64 {
         unsafe {
-            let configuration_addr = *self.base_addr.get() + 0x10;
-            let old = ptr::read_volatile(configuration_addr as *const u64);
-            ptr::write_volatile(configuration_addr as *mut u64, old | 1);
-        }
-    }
-
-    pub fn get_counter(&self) -> u64 {
-        unsafe {
-            let counter_l_addr = *self.base_addr.get() + 0xf0;
-            let counter_h_addr = *self.base_addr.get() + 0xf4;
+            let counter_l_addr = self.base_address + 0xf0;
+            let counter_h_addr = self.base_address + 0xf4;
             loop {
-                let high1 = ptr::read_volatile(counter_h_addr as *const u32);
-                let low = ptr::read_volatile(counter_l_addr as *const u32);
-                let high2 = ptr::read_volatile(counter_h_addr as *const u32);
+                let high1 = read_volatile(counter_h_addr as *const u32);
+                let low = read_volatile(counter_l_addr as *const u32);
+                let high2 = read_volatile(counter_h_addr as *const u32);
                 if high1 == high2 {
                     return (high1 as u64) << 32 | low as u64;
                 }
             }
         }
-    }
-
-    #[inline]
-    pub fn get_time_elapsed(&self) -> u64 {
-        self.get_counter() * (self.clock_speed() as u64 / 1_000_000)
     }
 }
 

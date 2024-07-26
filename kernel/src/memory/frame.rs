@@ -44,7 +44,7 @@ impl BitmapFrameAllocator {
             .entries()
             .last()
             .map(|region| region.base + region.length)
-            .expect("No memory regions found!");
+            .expect("No memory regions found");
 
         let bitmap_size = (memory_size / 4096).div_ceil(8) as usize;
 
@@ -57,7 +57,7 @@ impl BitmapFrameAllocator {
             .clone()
             .find(|region| region.length >= bitmap_size as u64)
             .map(|region| region.base)
-            .expect("No suitable memory region for bitmap!");
+            .expect("No suitable memory region for bitmap");
 
         let bitmap_buffer = unsafe {
             let physical_address = PhysAddr::new(bitmap_address);

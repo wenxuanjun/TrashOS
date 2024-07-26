@@ -2,9 +2,11 @@
 #![no_main]
 
 use core::panic::PanicInfo;
+use kernel::device::hpet::HPET;
 use kernel::device::keyboard::print_keypresses;
 use kernel::device::rtc::RtcDateTime;
-use kernel::task::{Process, Thread};
+use kernel::task::process::Process;
+use kernel::task::thread::Thread;
 use limine::BaseRevision;
 
 #[used]
@@ -15,6 +17,15 @@ static BASE_REVISION: BaseRevision = BaseRevision::new();
 extern "C" fn _start() -> ! {
     kernel::init();
     Thread::new_kernel_thread(print_keypresses);
+    log::info!("HPET elapsed: {} ns", HPET.elapsed_ns());
+
+    let ansi_red_test_string = "\x1b[31mRed\x1b[0m";
+    log::info!("ANSI red test string: {}", ansi_red_test_string);
+
+    (40..=47).for_each(|index| kernel::print!("\x1b[{}m   \x1b[0m", index));
+    kernel::println!();
+    (100..=107).for_each(|index| kernel::print!("\x1b[{}m   \x1b[0m", index));
+    kernel::println!();
 
     let current_time = RtcDateTime::new().to_datetime().unwrap();
     log::info!("Current time: {}", current_time);

@@ -8,7 +8,7 @@ static SCANCODE_QUEUE: Lazy<ArrayQueue<u8>> = Lazy::new(|| ArrayQueue::new(SCANC
 
 pub fn add_scancode(scancode: u8) {
     if let Err(_) = SCANCODE_QUEUE.push(scancode) {
-        crate::println!("Scancode queue full, dropping keyboard input!");
+        log::warn!("Scancode queue full, dropping keyboard input!");
     }
 }
 

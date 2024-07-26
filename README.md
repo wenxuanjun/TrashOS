@@ -2,7 +2,7 @@
 
 A stupidly simple OS written in Rust. Tons of crates are used.
 
-### Building
+### Build
 
 Before building, you may need to add target `x86_64-unknown-none` to your Rust toolchain:
 
@@ -10,11 +10,10 @@ Before building, you may need to add target `x86_64-unknown-none` to your Rust t
 $ rustup target add x86_64-unknown-none
 ```
 
-And then add some components to your Rust toolchain:
+Build the apps first (release mode is required):
 
 ```bash
-$ rustup component add rust-src
-$ rustup component add llvm-tools-preview
+$ cargo build --package apps --release
 ```
 
 Then you can run the builder to generate the disk image:
@@ -23,7 +22,9 @@ Then you can run the builder to generate the disk image:
 $ cargo run
 ```
 
-### Running
+The disk image will be located at the root of the project directory.
+
+### Run
 
 Add `--help` to the command line to see the help:
 
@@ -31,21 +32,24 @@ Add `--help` to the command line to see the help:
 $ cargo run -- --help
 ```
 
-For example, to build optimized binary and boot it with KVM:
+For example, to build optimized kernel and boot with KVM enabled and redirect the serial output to the terminal:
 
 ```bash
-$ cargo run --release -- --boot --kvm
+$ cargo run --release -- --boot --kvm --serial
 ```
 
-### TODO
+### Planned features
 
 - [x] APIC support
 - [x] Preemptive multitasking
 - [ ] Memory management
+- [ ] Task lifecycle management
 - [ ] Inter process communication
-- [ ] MLFQ scheduler
-- [ ] Symmetric multiprocessing
+- [x] Symmetric multiprocessing
 - [ ] PCI support
-- [ ] VT100 codes supported terminal
+- [x] VT100 codes supported terminal
 - [ ] AHCI support
 - [ ] Filesystem support
+- [ ] Shell
+- [ ] NVMe support
+- [ ] MLFQ scheduler

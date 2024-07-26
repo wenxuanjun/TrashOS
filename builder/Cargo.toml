@@ -4,11 +4,11 @@ edition = "2021"
 version = "0.1.0"
 
 [dependencies]
-ovmf-prebuilt = "0.1.0-alpha.1"
 argh = "0.1.12"
 anyhow = "1.0.32"
 tempfile = "3.3.0"
 gpt = "3.0.0"
+flate2 = "1.0.17"
 
 [dependencies.fatfs]
 version = "0.3.4"

@@ -10,8 +10,8 @@ use super::interrupts::InterruptIndex;
 use crate::device::hpet::HPET;
 use crate::memory::convert_physical_to_virtual;
 
-const TIMER_FREQUENCY_HZ: u32 = 5;
-const TIMER_CALIBRATION_ITERATION: u32 = 100;
+const TIMER_FREQUENCY_HZ: u32 = 200;
+const TIMER_CALIBRATION_ITERATION: u32 = 20;
 const IOAPIC_INTERRUPT_INDEX_OFFSET: u8 = 32;
 
 pub static APIC_INIT: AtomicBool = AtomicBool::new(false);
@@ -59,6 +59,7 @@ pub fn init() {
         ioapic_add_entry(IrqVector::Keyboard, InterruptIndex::Keyboard);
         ioapic_add_entry(IrqVector::Mouse, InterruptIndex::Mouse);
     };
+
     APIC_INIT.store(true, Ordering::Relaxed);
     log::info!("APIC initialized successfully!");
 }
@@ -88,20 +89,16 @@ unsafe fn ioapic_add_entry(irq: IrqVector, vector: InterruptIndex) {
 
 pub unsafe fn calibrate_timer() {
     let mut lapic = LAPIC.lock();
-
     let mut lapic_total_ticks = 0;
-    let hpet_clock_speed = HPET.clock_speed() as u64;
-    let hpet_tick_per_ms = 1_000_000_000_000 / hpet_clock_speed;
 
     for _ in 0..TIMER_CALIBRATION_ITERATION {
-        let next_ms = HPET.get_counter() + hpet_tick_per_ms;
+        let last_time = HPET.elapsed_ns();
         lapic.set_timer_initial(!0);
-        while HPET.get_counter() < next_ms {}
+        while HPET.elapsed_ns() - last_time < 1_000_000 {}
         lapic_total_ticks += !0 - lapic.timer_current();
     }
 
     let average_clock_per_ms = lapic_total_ticks / TIMER_CALIBRATION_ITERATION;
-    log::debug!("Calibrated clock per ms: {}", average_clock_per_ms);
 
     lapic.set_timer_mode(TimerMode::Periodic);
     lapic.set_timer_initial(average_clock_per_ms * 1000 / TIMER_FREQUENCY_HZ);

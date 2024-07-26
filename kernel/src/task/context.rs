@@ -3,32 +3,33 @@ use x86_64::{PhysAddr, VirtAddr};
 
 #[derive(Debug, Clone, Copy, Default)]
 #[repr(packed)]
+#[allow(dead_code)]
 pub struct Context {
-    pub cr3: usize,
-    pub r15: usize,
-    pub r14: usize,
-    pub r13: usize,
+    cr3: usize,
+    r15: usize,
+    r14: usize,
+    r13: usize,
 
-    pub r12: usize,
-    pub r11: usize,
-    pub r10: usize,
-    pub r9: usize,
+    r12: usize,
+    r11: usize,
+    r10: usize,
+    r9: usize,
 
-    pub r8: usize,
-    pub rbp: usize,
-    pub rsi: usize,
-    pub rdi: usize,
+    r8: usize,
+    rbp: usize,
+    rsi: usize,
+    rdi: usize,
 
-    pub rdx: usize,
-    pub rcx: usize,
-    pub rbx: usize,
-    pub rax: usize,
+    rdx: usize,
+    rcx: usize,
+    rbx: usize,
+    rax: usize,
 
-    pub rip: usize,
-    pub cs: usize,
-    pub rflags: usize,
-    pub rsp: usize,
-    pub ss: usize,
+    rip: usize,
+    cs: usize,
+    rflags: usize,
+    rsp: usize,
+    ss: usize,
 }
 
 impl Context {
@@ -65,7 +66,7 @@ macro_rules! push_context {
     () => {
         concat!(
             r#"
-			push rax
+            push rax
             push rbx
             push rcx
             push rdx
@@ -82,7 +83,7 @@ macro_rules! push_context {
             push r15
             mov r15, cr3
             push r15
-			"#,
+            "#,
         )
     };
 }
@@ -92,7 +93,7 @@ macro_rules! pop_context {
     () => {
         concat!(
             r#"
-			pop r15
+            pop r15
             mov cr3, r15
             pop r15
             pop r14

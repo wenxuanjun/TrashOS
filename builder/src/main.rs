@@ -19,7 +19,7 @@ struct Args {
     haxm: bool,
 
     #[argh(option, short = 'c')]
-    #[argh(default = "2")]
+    #[argh(default = "4")]
     #[argh(description = "number of CPU cores")]
     cores: usize,
 
@@ -36,9 +36,14 @@ fn main() {
         let mut cmd = Command::new("qemu-system-x86_64");
         let drive_config = format!("format=raw,file={}", &img_path.display());
 
+        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let ovmf_path = manifest_dir.join("OVMF_CODE.fd");
+        let ovmf_config = format!("if=pflash,format=raw,file={}", ovmf_path.display());
+
         cmd.arg("-machine").arg("q35");
-        cmd.arg("-bios").arg(ovmf_prebuilt::ovmf_pure_efi());
+        cmd.arg("-drive").arg(ovmf_config);
         cmd.arg("-drive").arg(drive_config);
+        cmd.arg("-m").arg("256m");
         cmd.arg("-smp").arg(format!("cores={}", args.cores));
         cmd.arg("-cpu").arg("qemu64,+x2apic");
 

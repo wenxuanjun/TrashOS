@@ -30,7 +30,7 @@ pub static ACPI: Lazy<Acpi> = Lazy::new(|| {
 
     let platform_info = acpi_tables
         .platform_info()
-        .expect("Failed to get platform info!");
+        .expect("Failed to get platform info");
 
     let apic = match platform_info.interrupt_model {
         InterruptModel::Apic(apic) => apic,
@@ -38,7 +38,7 @@ pub static ACPI: Lazy<Acpi> = Lazy::new(|| {
         _ => panic!("ACPI does not have interrupt model info!"),
     };
 
-    let hpet_info = HpetInfo::new(acpi_tables).expect("Failed to get HPET info!");
+    let hpet_info = HpetInfo::new(acpi_tables).expect("Failed to get HPET info");
 
     Acpi { apic, hpet_info }
 });

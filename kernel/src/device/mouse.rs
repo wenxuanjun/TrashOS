@@ -1,29 +1,23 @@
 use bitflags::bitflags;
-use spin::{Lazy, Mutex};
+use spin::Mutex;
 use x86_64::instructions::port::Port;
 
-const PORT_READ_TRY_TIMES: u16 = 10_000;
-
-pub static MOUSE: Lazy<Mutex<Mouse>> = Lazy::new(|| Mutex::new(Mouse::new()));
+pub static MOUSE: Mutex<Mouse> = Mutex::new(Mouse::new());
 
 pub fn init() {
     let mut mouse = MOUSE.lock();
-    match mouse.init() {
-        Ok(_) => {
-            mouse.set_complete_handler(mouse_complete_handler);
-            log::debug!("Mouse Type: {:?}", mouse.mouse_type);
-            log::info!("Mouse initialized successfully!");
-        }
-        Err(err) => log::error!("Failed to initialize mouse: {}", err),
-    }
-}
-
-fn mouse_complete_handler(mouse_state: MouseState) {
-    crate::println!("{:?}", mouse_state);
+    mouse.init().unwrap_or_else(|err| {
+        log::error!("Mouse initialization failed: {}", err);
+    });
+    mouse.set_complete_handler(|mouse_state: MouseState| {
+        crate::println!("{:?}", mouse_state);
+    });
+    log::debug!("Mouse Type: {:?}", mouse.mouse_type);
+    log::info!("Mouse initialized successfully!");
 }
 
 bitflags! {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     struct MouseFlags: u8 {
         const LEFT_BUTTON = 0b0000_0001;
         const RIGHT_BUTTON = 0b0000_0010;
@@ -45,23 +39,6 @@ enum MouseAdditionalFlags {
     None,
 }
 
-#[derive(Debug)]
-enum MouseType {
-    Standard,
-    OnlyScroll,
-    FiveButton,
-}
-
-#[derive(Debug)]
-pub struct Mouse {
-    command_port: Port<u8>,
-    data_port: Port<u8>,
-    current_packet_index: u16,
-    current_state: MouseState,
-    mouse_type: MouseType,
-    complete_handler: Option<fn(MouseState)>,
-}
-
 #[derive(Debug, Copy, Clone)]
 pub struct MouseState {
     flags: MouseFlags,
@@ -79,6 +56,23 @@ impl MouseState {
             move_y: 0,
         }
     }
+}
+
+#[derive(Debug)]
+enum MouseType {
+    Standard,
+    OnlyScroll,
+    FiveButton,
+}
+
+#[derive(Debug)]
+pub struct Mouse {
+    command_port: Port<u8>,
+    data_port: Port<u8>,
+    current_packet_index: u16,
+    current_state: MouseState,
+    mouse_type: MouseType,
+    complete_handler: Option<fn(MouseState)>,
 }
 
 impl Mouse {
@@ -186,10 +180,8 @@ impl Mouse {
     unsafe fn send_command(&mut self, command: u8) -> Result<&mut Self, &'static str> {
         self.write_command_port(0xd4)?;
         self.write_data_port(command)?;
-        for _ in 0..PORT_READ_TRY_TIMES {
-            if self.read_data_port()? == 0xfa {
-                return Ok(self);
-            }
+        if self.read_data_port()? == 0xfa {
+            return Ok(self);
         }
         Err("Did not receive ack response from mouse!")
     }
@@ -210,7 +202,7 @@ impl Mouse {
     }
 
     unsafe fn wait_for_read(&mut self) -> Result<(), &'static str> {
-        for _ in 0..PORT_READ_TRY_TIMES {
+        for _ in 0..10_000 {
             if self.command_port.read() & 0x1 == 1 {
                 return Ok(());
             }
@@ -219,7 +211,7 @@ impl Mouse {
     }
 
     unsafe fn wait_for_write(&mut self) -> Result<(), &'static str> {
-        for _ in 0..PORT_READ_TRY_TIMES {
+        for _ in 0..10_000 {
             if self.command_port.read() & 0x2 == 0 {
                 return Ok(());
             }
