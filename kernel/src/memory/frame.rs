@@ -100,6 +100,10 @@ impl BitmapFrameAllocator {
             next_frame,
         }
     }
+
+    pub fn available_frames(&self) -> usize {
+        self.usable_frames
+    }
 }
 
 unsafe impl FrameAllocator<Size4KiB> for BitmapFrameAllocator {
@@ -126,5 +130,6 @@ impl FrameDeallocator<Size4KiB> for BitmapFrameAllocator {
     unsafe fn deallocate_frame(&mut self, frame: PhysFrame<Size4KiB>) {
         let index = frame.start_address().as_u64() / 4096;
         self.bitmap.set(index as usize, true);
+        self.usable_frames += 1;
     }
 }

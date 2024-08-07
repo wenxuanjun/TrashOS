@@ -38,14 +38,6 @@ SECTIONS
         *(.rodata .rodata.*)
     } :rodata
 
-    /* C++ is a language that allows for global constructors. In order to obtain the */
-    /* address of the ".init_array" section we need to define a symbol for it. */
-    .init_array : {
-        __init_array = .;
-        *(.init_array .init_array.*)
-        __init_array_end = .;
-    } :rodata
-
     /* Move to the next memory page for .data */
     . = ALIGN(CONSTANT(MAXPAGESIZE));
 

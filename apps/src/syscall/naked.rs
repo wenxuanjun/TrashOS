@@ -1,11 +1,23 @@
 #[naked]
-#[rustfmt::skip]
 pub extern "C" fn syscall0(_rax: u64) -> usize {
+    #[rustfmt::skip]
     unsafe {
         core::arch::asm!(
             "mov rax, rdi",
             "syscall",
             "ret",
+            options(noreturn)
+        )
+    }
+}
+
+#[naked]
+pub extern "C" fn syscall0_noret(_rax: u64) -> ! {
+    #[rustfmt::skip]
+    unsafe {
+        core::arch::asm!(
+            "mov rax, rdi",
+            "syscall",
             options(noreturn)
         )
     }

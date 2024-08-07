@@ -18,7 +18,7 @@ good_memory_allocator = "0.1.7"
 bit_field = "0.10.2"
 limine = "0.2.0"
 colorz = "1.1.2"
-os-terminal = "0.1.1"
+os-terminal = "0.3.6"
 
 [dependencies.time]
 version = "0.3.36"
@@ -30,13 +30,8 @@ features = ["alloc"]
 default-features = false
 
 [dependencies.object]
-version = "0.36.1"
+version = "0.36.3"
 features = ["read_core", "elf", "unaligned"]
-default-features = false
-
-[dependencies.noto-sans-mono-bitmap]
-version = "0.3.0"
-features = ["bold", "size_20", "unicode-basic-latin"]
 default-features = false
 
 [dependencies.log]

@@ -2,17 +2,18 @@ use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
-use x86_64::structures::paging::OffsetPageTable;
+use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::sync::atomic::{AtomicU64, Ordering};
 use object::{File, Object, ObjectSegment};
 use spin::{Lazy, RwLock};
 use x86_64::instructions::interrupts;
+use x86_64::structures::paging::OffsetPageTable;
 use x86_64::VirtAddr;
 
 use super::thread::{SharedThread, Thread};
 use crate::memory::{ExtendedPageTable, MappingType, MemoryManager};
-use crate::memory::create_page_table_from_kernel;
+use crate::memory::{FRAME_ALLOCATOR, KERNEL_PAGE_TABLE};
 
 pub(super) type SharedProcess = Arc<RwLock<Box<Process>>>;
 pub(super) type WeakSharedProcess = Weak<RwLock<Box<Process>>>;
@@ -23,7 +24,7 @@ pub static KERNEL_PROCESS: Lazy<SharedProcess> = Lazy::new(|| Process::new_kerne
 const KERNEL_PROCESS_NAME: &str = "kernel";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct ProcessId(pub u64);
+pub struct ProcessId(pub u64);
 
 impl ProcessId {
     fn new() -> Self {
@@ -34,10 +35,10 @@ impl ProcessId {
 
 #[allow(dead_code)]
 pub struct Process {
-    id: ProcessId,
-    name: String,
+    pub id: ProcessId,
+    pub name: String,
     pub page_table: OffsetPageTable<'static>,
-    pub threads: VecDeque<SharedThread>,
+    pub threads: Vec<SharedThread>,
 }
 
 impl Process {
@@ -45,7 +46,7 @@ impl Process {
         let process = Process {
             id: ProcessId::new(),
             name: String::from(name),
-            page_table: create_page_table_from_kernel(),
+            page_table: unsafe { KERNEL_PAGE_TABLE.lock().deep_copy() },
             threads: Default::default(),
         };
 
@@ -67,6 +68,16 @@ impl Process {
             PROCESSES.write().push_back(process.clone());
         });
     }
+
+    pub fn exit_process(&self) {
+        let mut processes = PROCESSES.write();
+        if let Some(index) = processes
+            .iter()
+            .position(|process| process.read().id == self.id)
+        {
+            processes.remove(index);
+        }
+    }
 }
 
 struct ProcessBinary;
@@ -87,10 +98,19 @@ impl ProcessBinary {
             .expect("Failed to allocate memory for ELF segment");
 
             if let Ok(data) = segment.data() {
-                page_table
-                    .write_to_mapped_address(data, VirtAddr::new(segment.address()))
-                    .expect("Failed to write ELF segment to memory");
+                page_table.write_to_mapped_address(data, VirtAddr::new(segment.address()));
             }
         }
+    }
+}
+
+impl Drop for Process {
+    fn drop(&mut self) {
+        unsafe { self.page_table.free_user_page_table() };
+        log::info!("Process {} dropped", self.id.0);
+        log::info!(
+            "Available frames: {:?}",
+            FRAME_ALLOCATOR.lock().available_frames()
+        );
     }
 }

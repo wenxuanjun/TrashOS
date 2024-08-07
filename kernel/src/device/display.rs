@@ -1,6 +1,6 @@
 use core::slice::from_raw_parts_mut;
 use limine::request::FramebufferRequest;
-use os_terminal::DrawTarget;
+use os_terminal::{DrawTarget, Rgb888};
 
 #[used]
 #[link_section = ".requests"]
@@ -66,7 +66,8 @@ impl DrawTarget for Display {
         (self.width, self.height)
     }
 
-    fn draw_pixel(&mut self, x: usize, y: usize, color: (u8, u8, u8)) {
+    #[inline(always)]
+    fn draw_pixel(&mut self, x: usize, y: usize, color: Rgb888) {
         let byte_offset = (y * self.stride + x) * self.bytes_per_pixel;
         let write_range = byte_offset..(byte_offset + self.bytes_per_pixel);
 

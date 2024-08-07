@@ -1,7 +1,7 @@
 use core::alloc::Layout;
 use good_memory_allocator::SpinLockedAllocator;
 
-use crate::syscall;
+use crate::syscall::malloc;
 
 pub const HEAP_START: usize = 0x19198100000;
 pub const HEAP_SIZE: usize = 1 * 1024 * 1024;
@@ -15,7 +15,7 @@ fn alloc_error_handler(layout: Layout) -> ! {
 }
 
 pub fn init_heap() {
-    syscall::malloc(HEAP_START, HEAP_SIZE);
+    malloc(HEAP_START, HEAP_SIZE);
     unsafe {
         ALLOCATOR.init(HEAP_START, HEAP_SIZE);
     }

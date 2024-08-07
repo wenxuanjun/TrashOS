@@ -1,4 +1,4 @@
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 use spin::{Lazy, Mutex};
 use x2apic::ioapic::{IoApic, IrqMode, RedirectionTableEntry};
@@ -10,11 +10,12 @@ use super::interrupts::InterruptIndex;
 use crate::device::hpet::HPET;
 use crate::memory::convert_physical_to_virtual;
 
-const TIMER_FREQUENCY_HZ: u32 = 200;
-const TIMER_CALIBRATION_ITERATION: u32 = 20;
+const TIMER_FREQUENCY_HZ: u32 = 250;
+const TIMER_CALIBRATION_ITERATION: u32 = 100;
 const IOAPIC_INTERRUPT_INDEX_OFFSET: u8 = 32;
 
 pub static APIC_INIT: AtomicBool = AtomicBool::new(false);
+pub static CALIBRATED_TIMER_INITIAL: AtomicU32 = AtomicU32::new(0);
 
 pub static LAPIC: Lazy<Mutex<LocalApic>> = Lazy::new(|| unsafe {
     let physical_address = PhysAddr::new(ACPI.apic.local_apic_address as u64);
@@ -60,7 +61,7 @@ pub fn init() {
         ioapic_add_entry(IrqVector::Mouse, InterruptIndex::Mouse);
     };
 
-    APIC_INIT.store(true, Ordering::Relaxed);
+    APIC_INIT.store(true, Ordering::SeqCst);
     log::info!("APIC initialized successfully!");
 }
 
@@ -99,7 +100,10 @@ pub unsafe fn calibrate_timer() {
     }
 
     let average_clock_per_ms = lapic_total_ticks / TIMER_CALIBRATION_ITERATION;
+    let calibrated_timer_initial = average_clock_per_ms * 1000 / TIMER_FREQUENCY_HZ;
+    log::debug!("Calibrated timer initial: {}", calibrated_timer_initial);
 
     lapic.set_timer_mode(TimerMode::Periodic);
-    lapic.set_timer_initial(average_clock_per_ms * 1000 / TIMER_FREQUENCY_HZ);
+    lapic.set_timer_initial(calibrated_timer_initial);
+    CALIBRATED_TIMER_INITIAL.store(calibrated_timer_initial, Ordering::SeqCst);
 }

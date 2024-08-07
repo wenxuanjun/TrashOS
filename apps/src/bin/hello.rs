@@ -8,9 +8,9 @@ use apps::syscall::write;
 #[no_mangle]
 unsafe fn main() {
     let hello = String::from("Hello!");
-    for _ in 0..200 {
+    for _ in 0..100 {
         write(hello.as_ptr(), hello.len());
-        for _ in 1..100000 {
+        for _ in 1..10000000 {
             core::arch::asm!("nop");
         }
     }

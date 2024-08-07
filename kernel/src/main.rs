@@ -5,6 +5,7 @@ use core::panic::PanicInfo;
 use kernel::device::hpet::HPET;
 use kernel::device::keyboard::print_keypresses;
 use kernel::device::rtc::RtcDateTime;
+use kernel::device::terminal::terminal_manual_flush;
 use kernel::task::process::Process;
 use kernel::task::thread::Thread;
 use limine::BaseRevision;
@@ -16,8 +17,10 @@ static BASE_REVISION: BaseRevision = BaseRevision::new();
 #[no_mangle]
 extern "C" fn _start() -> ! {
     kernel::init();
-    Thread::new_kernel_thread(print_keypresses);
     log::info!("HPET elapsed: {} ns", HPET.elapsed_ns());
+
+    Thread::new_kernel_thread(print_keypresses);
+    Thread::new_kernel_thread(terminal_manual_flush);
 
     let ansi_red_test_string = "\x1b[31mRed\x1b[0m";
     log::info!("ANSI red test string: {}", ansi_red_test_string);

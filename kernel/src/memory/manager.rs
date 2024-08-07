@@ -1,8 +1,8 @@
 use core::marker::PhantomData;
 use x86_64::instructions::interrupts;
 use x86_64::structures::paging::mapper::MapToError;
-use x86_64::structures::paging::{FrameAllocator, OffsetPageTable, PhysFrame};
-use x86_64::structures::paging::{Mapper, PageTableFlags};
+use x86_64::structures::paging::{FrameAllocator, FrameDeallocator};
+use x86_64::structures::paging::{Mapper, OffsetPageTable, PageTableFlags};
 use x86_64::structures::paging::{Page, PageSize, Size4KiB};
 use x86_64::VirtAddr;
 
@@ -54,31 +54,38 @@ impl<S: PageSize> MemoryManager<S> {
                 Page::range_inclusive(start_page, end_page)
             };
             let mut frame_allocator = super::FRAME_ALLOCATOR.lock();
+
             for page in page_range {
                 let frame = frame_allocator
                     .allocate_frame()
-                    .expect("Failed to allocate frame");
-                Self::map_frame_to_page(frame, page, flags, page_table, &mut *frame_allocator)?;
+                    .ok_or(MapToError::FrameAllocationFailed)?;
+                unsafe { page_table.map_to(page, frame, flags, &mut *frame_allocator) }
+                    .map(|flush| flush.flush())?;
             }
+
             Ok(())
         })
     }
 
-    fn map_frame_to_page(
-        frame: PhysFrame<S>,
-        page: Page<S>,
-        flags: PageTableFlags,
+    pub fn dealloc_range(
+        start_address: VirtAddr,
+        length: u64,
         page_table: &mut OffsetPageTable<'static>,
-        frame_allocator: &mut BitmapFrameAllocator,
-    ) -> Result<(), MapToError<S>>
-    where
-        OffsetPageTable<'static>: Mapper<S>,
-        BitmapFrameAllocator: FrameAllocator<S>,
-    {
-        let result = unsafe { page_table.map_to(page, frame, flags, frame_allocator) };
-        match result {
-            Ok(flush) => Ok(flush.flush()),
-            Err(err) => Err(err),
-        }
+    ) {
+        interrupts::without_interrupts(|| {
+            let page_range = {
+                let start_page = Page::containing_address(start_address);
+                let end_page = Page::containing_address(start_address + length - 1u64);
+                Page::range_inclusive(start_page, end_page)
+            };
+            let mut frame_allocator = super::FRAME_ALLOCATOR.lock();
+            for page in page_range {
+                let (frame, mapper_flush) =
+                    page_table.unmap(page).expect("Failed to deallocate frame");
+
+                mapper_flush.flush();
+                unsafe { frame_allocator.deallocate_frame(frame) };
+            }
+        })
     }
 }

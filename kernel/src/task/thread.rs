@@ -47,7 +47,7 @@ impl Thread {
     pub fn get_init_thread() -> WeakSharedThread {
         let thread = Self::new(Arc::downgrade(&KERNEL_PROCESS));
         let thread = Arc::new(RwLock::new(Box::new(thread)));
-        KERNEL_PROCESS.write().threads.push_back(thread.clone());
+        KERNEL_PROCESS.write().threads.push(thread.clone());
         Arc::downgrade(&thread)
     }
 
@@ -62,7 +62,7 @@ impl Thread {
         );
 
         let thread = Arc::new(RwLock::new(Box::new(thread)));
-        KERNEL_PROCESS.write().threads.push_back(thread.clone());
+        KERNEL_PROCESS.write().threads.push(thread.clone());
 
         interrupts::without_interrupts(|| {
             SCHEDULER.lock().add(Arc::downgrade(&thread));
@@ -83,7 +83,7 @@ impl Thread {
         );
 
         let thread = Arc::new(RwLock::new(Box::new(thread)));
-        process.threads.push_back(thread.clone());
+        process.threads.push(thread.clone());
 
         SCHEDULER.lock().add(Arc::downgrade(&thread));
     }

@@ -38,6 +38,6 @@ pub extern "C" fn syscall_matcher(
         SyscallIndex::Read => unimplemented!(),
         SyscallIndex::Write => write(arg1 as *const u8, arg2),
         SyscallIndex::Malloc => malloc(arg1, arg2),
-        SyscallIndex::Exit => unimplemented!(),
+        SyscallIndex::Exit => exit(),
     }
 }

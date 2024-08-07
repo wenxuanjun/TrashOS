@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(naked_functions)]
 #![feature(alloc_error_handler)]
+#![feature(stmt_expr_attributes)]
 
 use core::panic::PanicInfo;
 
@@ -20,10 +21,6 @@ fn panic(_info: &PanicInfo) -> ! {
 #[no_mangle]
 unsafe extern "sysv64" fn _start() -> ! {
     memory::init_heap();
-
     main();
-
-    loop {
-        core::arch::asm!("nop");
-    }
+    syscall::exit();
 }
