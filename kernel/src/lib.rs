@@ -4,6 +4,8 @@
 #![feature(naked_functions)]
 #![feature(variant_count)]
 #![feature(allocator_api)]
+#![feature(thread_local)]
+#![feature(panic_can_unwind)]
 
 pub mod arch;
 pub mod device;

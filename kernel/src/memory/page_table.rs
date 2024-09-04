@@ -34,13 +34,14 @@ impl ExtendedPageTable for OffsetPageTable<'_> {
     }
 
     unsafe fn deep_copy(&self) -> OffsetPageTable<'static> {
-        let mut frame_allocator = FRAME_ALLOCATOR.lock();
         let virtual_address = convert_physical_to_virtual(self.physical_address());
-        let source = &*virtual_address.as_ptr::<PageTable>();
-        let mut new_page_table = new_from_allocate(&mut frame_allocator);
-        let target = new_page_table.level_4_table_mut();
+        let source_table = &*virtual_address.as_ptr::<PageTable>();
 
-        new_from_recursion(&mut frame_allocator, source, target, 4);
+        let mut frame_allocator = FRAME_ALLOCATOR.lock();
+        let mut new_page_table = new_from_allocate(&mut frame_allocator);
+        let target_table = new_page_table.level_4_table_mut();
+
+        new_from_recursion(&mut frame_allocator, source_table, target_table, 4);
         new_page_table
     }
 
@@ -60,7 +61,7 @@ unsafe fn new_from_allocate(
     let new_page_table =
         &mut *convert_physical_to_virtual(page_table_address).as_mut_ptr::<PageTable>();
 
-    let physical_memory_offset = VirtAddr::new(PHYSICAL_MEMORY_OFFSET.clone());
+    let physical_memory_offset = VirtAddr::new(*PHYSICAL_MEMORY_OFFSET);
     let page_table = OffsetPageTable::new(new_page_table, physical_memory_offset);
 
     page_table
@@ -106,7 +107,7 @@ unsafe fn free_pages_recursion(
         return;
     }
 
-    let virtual_address = VirtAddr::new(*PHYSICAL_MEMORY_OFFSET) + physical_address.as_u64();
+    let virtual_address = convert_physical_to_virtual(physical_address);
     let page_table = &mut *(virtual_address.as_mut_ptr::<PageTable>());
 
     for entry in page_table.iter() {

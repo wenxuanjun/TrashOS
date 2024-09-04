@@ -1,67 +1,64 @@
-use colorz::ansi::{Blue, Green, Red, Yellow};
-use colorz::{Colorize, Style};
+use log::{set_logger, set_max_level, Level, Record};
+use log::{LevelFilter, Log, Metadata};
 
 use crate::{println, serial_println};
 
 pub fn init() {
     static LOGGER: Logger = Logger;
-    log::set_logger(&LOGGER).unwrap();
-    log::set_max_level(log::LevelFilter::Debug);
+    set_logger(&LOGGER).unwrap();
+    set_max_level(LevelFilter::Debug);
 }
 
-const ERROR_STYLE: Style = Style::new().fg(Red).const_into_runtime_style();
-const WARN_STYLE: Style = Style::new().fg(Yellow).const_into_runtime_style();
-const INFO_STYLE: Style = Style::new().fg(Green).const_into_runtime_style();
-const DEBUG_STYLE: Style = Style::new().fg(Blue).const_into_runtime_style();
-const DEFAULT_STYLE: Style = Style::new().const_into_runtime_style();
+macro_rules! log_output {
+    ($color:expr, $level:expr, $args:expr, $($extra:tt)*) => {
+        serial_println!(
+            "[{}] {}{}",
+            format_args!("\x1b[{}m{}\x1b[0m", $color, $level),
+            $args,
+            format_args!($($extra)*)
+        );
+        println!(
+            "[{}] {}{}",
+            format_args!("\x1b[{}m{}\x1b[0m", $color, $level),
+            $args,
+            format_args!($($extra)*)
+        );
+    };
+}
 
 struct Logger;
 
 impl Logger {
-    fn get_style(level: log::Level) -> Style {
-        match level {
-            log::Level::Error => ERROR_STYLE,
-            log::Level::Warn => WARN_STYLE,
-            log::Level::Info => INFO_STYLE,
-            log::Level::Debug => DEBUG_STYLE,
-            _ => DEFAULT_STYLE,
+    fn log_message(&self, record: &Record, with_location: bool) {
+        let color = match record.level() {
+            Level::Error => "31",
+            Level::Warn => "33",
+            Level::Info => "32",
+            Level::Debug => "34",
+            Level::Trace => "36",
+        };
+
+        if with_location {
+            let file = record.file().unwrap();
+            let line = record.line().unwrap();
+            log_output!(color, record.level(), record.args(), ", {}:{}", file, line);
+        } else {
+            log_output!(color, record.level(), record.args(), "");
         }
     }
 }
 
-impl log::Log for Logger {
-    fn enabled(&self, metadata: &log::Metadata) -> bool {
-        metadata.level() <= log::Level::Debug
+impl Log for Logger {
+    fn enabled(&self, metadata: &Metadata) -> bool {
+        metadata.level() <= Level::Trace
     }
 
-    fn log(&self, record: &log::Record) {
+    fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            let level = record.level();
-            let level_style = Logger::get_style(level);
-
-            match record.level() {
-                log::Level::Debug | log::Level::Trace => {
-                    serial_println!(
-                        "[{}] {}, {}:{}",
-                        level.style_with(level_style),
-                        record.args(),
-                        record.file().unwrap_or("unknown"),
-                        record.line().unwrap_or(0)
-                    );
-                    println!(
-                        "[{}] {}, {}:{}",
-                        level.style_with(level_style),
-                        record.args(),
-                        record.file().unwrap_or("unknown"),
-                        record.line().unwrap_or(0)
-                    );
-                }
-                _ => {
-                    serial_println!("[{}] {}", level.style_with(level_style), record.args());
-                    println!("[{}] {}", level.style_with(level_style), record.args());
-                }
-            }
+            let with_location = matches!(record.level(), Level::Debug | Level::Trace);
+            self.log_message(record, with_location);
         }
     }
+
     fn flush(&self) {}
 }

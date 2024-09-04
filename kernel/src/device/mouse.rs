@@ -6,12 +6,16 @@ pub static MOUSE: Mutex<Mouse> = Mutex::new(Mouse::new());
 
 pub fn init() {
     let mut mouse = MOUSE.lock();
-    mouse.init().unwrap_or_else(|err| {
+
+    if let Err(err) = mouse.init() {
         log::error!("Mouse initialization failed: {}", err);
+        return;
+    }
+
+    mouse.set_complete_handler(|state: MouseState| {
+        crate::println!("{:?}", state);
     });
-    mouse.set_complete_handler(|mouse_state: MouseState| {
-        crate::println!("{:?}", mouse_state);
-    });
+
     log::debug!("Mouse Type: {:?}", mouse.mouse_type);
     log::info!("Mouse initialized successfully!");
 }
@@ -19,23 +23,23 @@ pub fn init() {
 bitflags! {
     #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     struct MouseFlags: u8 {
-        const LEFT_BUTTON = 0b0000_0001;
-        const RIGHT_BUTTON = 0b0000_0010;
-        const MIDDLE_BUTTON = 0b0000_0100;
-        const ALWAYS_ONE = 0b0000_1000;
-        const X_SIGN = 0b0001_0000;
-        const Y_SIGN = 0b0010_0000;
-        const X_OVERFLOW = 0b0100_0000;
-        const Y_OVERFLOW = 0b1000_0000;
+        const LEFT_BUTTON = 1 << 0;
+        const RIGHT_BUTTON = 1 << 1;
+        const MIDDLE_BUTTON = 1 << 2;
+        const ALWAYS_ONE = 1 << 3;
+        const X_SIGN = 1 << 4;
+        const Y_SIGN = 1 << 5;
+        const X_OVERFLOW = 1 << 6;
+        const Y_OVERFLOW = 1 << 7;
     }
 }
 
 #[derive(Debug, Copy, Clone)]
 enum MouseAdditionalFlags {
-    FirstButton = 0b0100_0001,
-    SecondButton = 0b0111_1111,
-    ScrollUp = 0b0000_0001,
-    ScrollDown = 0b0000_1111,
+    FirstButton,
+    SecondButton,
+    ScrollUp,
+    ScrollDown,
     None,
 }
 

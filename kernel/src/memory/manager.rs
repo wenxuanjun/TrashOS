@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 use x86_64::instructions::interrupts;
 use x86_64::structures::paging::mapper::MapToError;
-use x86_64::structures::paging::{FrameAllocator, FrameDeallocator};
+use x86_64::structures::paging::{FrameAllocator, PhysFrame};
 use x86_64::structures::paging::{Mapper, OffsetPageTable, PageTableFlags};
 use x86_64::structures::paging::{Page, PageSize, Size4KiB};
 use x86_64::VirtAddr;
@@ -67,11 +67,17 @@ impl<S: PageSize> MemoryManager<S> {
         })
     }
 
-    pub fn dealloc_range(
+    pub fn map_range_to(
         start_address: VirtAddr,
+        start_frame: PhysFrame<S>,
         length: u64,
+        flags: PageTableFlags,
         page_table: &mut OffsetPageTable<'static>,
-    ) {
+    ) -> Result<(), MapToError<S>>
+    where
+        OffsetPageTable<'static>: Mapper<S>,
+        BitmapFrameAllocator: FrameAllocator<S>,
+    {
         interrupts::without_interrupts(|| {
             let page_range = {
                 let start_page = Page::containing_address(start_address);
@@ -79,13 +85,13 @@ impl<S: PageSize> MemoryManager<S> {
                 Page::range_inclusive(start_page, end_page)
             };
             let mut frame_allocator = super::FRAME_ALLOCATOR.lock();
-            for page in page_range {
-                let (frame, mapper_flush) =
-                    page_table.unmap(page).expect("Failed to deallocate frame");
 
-                mapper_flush.flush();
-                unsafe { frame_allocator.deallocate_frame(frame) };
+            for page in page_range {
+                unsafe { page_table.map_to(page, start_frame, flags, &mut *frame_allocator) }
+                    .map(|flush| flush.flush())?;
             }
+
+            Ok(())
         })
     }
 }

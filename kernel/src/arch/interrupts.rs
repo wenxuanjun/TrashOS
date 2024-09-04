@@ -50,8 +50,9 @@ pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
 #[naked]
 extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
     fn timer_handler(context: VirtAddr) -> VirtAddr {
+        let context = SCHEDULER.lock().schedule(context);
         super::apic::end_of_interrupt();
-        SCHEDULER.lock().schedule(context)
+        context
     }
 
     unsafe {

@@ -1,6 +1,6 @@
 use acpi::platform::interrupt::Apic;
-use acpi::InterruptModel;
 use acpi::{AcpiHandler, AcpiTables, HpetInfo, PhysicalMapping};
+use acpi::{InterruptModel, PciConfigRegions};
 use alloc::alloc::Global;
 use alloc::boxed::Box;
 use core::ptr::NonNull;
@@ -15,15 +15,13 @@ use crate::memory::{convert_physical_to_virtual, convert_virtual_to_physical};
 static RSDP_REQUEST: RsdpRequest = RsdpRequest::new();
 
 pub static ACPI: Lazy<Acpi> = Lazy::new(|| {
-    let rsdp_response = RSDP_REQUEST.get_response().unwrap();
+    let response = RSDP_REQUEST.get_response().unwrap();
 
     let acpi_tables = unsafe {
-        let rsdp_addr = VirtAddr::new(rsdp_response.address() as u64);
-        let tables = AcpiTables::from_rsdp(
-            AcpiMemHandler,
-            convert_virtual_to_physical(rsdp_addr).as_u64() as usize,
-        );
-        Box::leak(Box::new(tables.unwrap()))
+        let rsdp_address = VirtAddr::new(response.address() as u64);
+        let physical_address = convert_virtual_to_physical(rsdp_address).as_u64();
+        let acpi_tables = AcpiTables::from_rsdp(AcpiMemHandler, physical_address as usize);
+        Box::leak(Box::new(acpi_tables.unwrap()))
     };
 
     log::info!("Find ACPI tables successfully!");
@@ -38,10 +36,21 @@ pub static ACPI: Lazy<Acpi> = Lazy::new(|| {
         _ => panic!("ACPI does not have interrupt model info!"),
     };
 
+    let pci_regions = PciConfigRegions::new(&acpi_tables).expect("Failed to get PCI regions");
     let hpet_info = HpetInfo::new(acpi_tables).expect("Failed to get HPET info");
 
-    Acpi { apic, hpet_info }
+    Acpi {
+        apic,
+        pci_regions,
+        hpet_info,
+    }
 });
+
+pub struct Acpi<'a> {
+    pub apic: Apic<'a, Global>,
+    pub pci_regions: PciConfigRegions<'a, Global>,
+    pub hpet_info: HpetInfo,
+}
 
 #[derive(Clone)]
 struct AcpiMemHandler;
@@ -61,10 +70,4 @@ impl AcpiHandler for AcpiMemHandler {
     }
 
     fn unmap_physical_region<T>(_region: &PhysicalMapping<Self, T>) {}
-}
-
-#[derive(Debug)]
-pub struct Acpi<'a> {
-    pub apic: Apic<'a, Global>,
-    pub hpet_info: HpetInfo,
 }

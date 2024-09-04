@@ -8,7 +8,7 @@ use apps::syscall::write;
 #[no_mangle]
 unsafe fn main() {
     let mut counter = 0;
-    for _ in 0..500 {
+    for _ in 0..300 {
         let mut buf = String::from("[");
         buf.push_str(&counter.to_string());
         buf.push(']');

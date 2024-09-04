@@ -34,18 +34,23 @@ fn main() {
 
     if args.boot {
         let mut cmd = Command::new("qemu-system-x86_64");
-        let drive_config = format!("format=raw,file={}", &img_path.display());
 
         let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let ovmf_path = manifest_dir.join("OVMF_CODE.fd");
+        let assets_dir = manifest_dir.join("assets");
+
+        let ovmf_path = assets_dir.join("OVMF_CODE.fd");
         let ovmf_config = format!("if=pflash,format=raw,file={}", ovmf_path.display());
 
         cmd.arg("-machine").arg("q35");
         cmd.arg("-drive").arg(ovmf_config);
-        cmd.arg("-drive").arg(drive_config);
         cmd.arg("-m").arg("256m");
         cmd.arg("-smp").arg(format!("cores={}", args.cores));
         cmd.arg("-cpu").arg("qemu64,+x2apic");
+
+        cmd.arg("-device").arg("ahci,id=ahci");
+        let drive_config = format!("format=raw,id=disk1,file={},if=none", img_path.display());
+        cmd.arg("-device").arg("ide-hd,drive=disk1,bus=ahci.0");
+        cmd.arg("-drive").arg(drive_config);
 
         if args.kvm {
             cmd.arg("--enable-kvm");
@@ -67,10 +72,11 @@ fn build_img() -> PathBuf {
     println!("Building UEFI disk image for kernel at {:#?}", &kernel_path);
 
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let assets_dir = manifest_dir.join("assets");
     let img_path = manifest_dir.parent().unwrap().join("TrashOS.img");
 
-    let limine_elf = manifest_dir.join("BOOTX64.EFI");
-    let limine_config = manifest_dir.join("limine.cfg");
+    let limine_elf = assets_dir.join("BOOTX64.EFI");
+    let limine_config = assets_dir.join("limine.conf");
 
     ImageBuilder::build(
         kernel_path.to_path_buf(),

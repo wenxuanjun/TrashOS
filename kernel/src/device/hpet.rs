@@ -1,59 +1,61 @@
-use core::ptr::{read_volatile, write_volatile};
+use core::ptr;
 use spin::Lazy;
-use x86_64::PhysAddr;
+use x86_64::{PhysAddr, VirtAddr};
 
-use crate::{arch::acpi::ACPI, memory::convert_physical_to_virtual};
+use crate::arch::acpi::ACPI;
+use crate::memory::convert_physical_to_virtual;
 
 pub static HPET: Lazy<Hpet> = Lazy::new(|| {
     let physical_address = PhysAddr::new(ACPI.hpet_info.base_address as u64);
-    let virtual_address = convert_physical_to_virtual(physical_address);
-
-    let hpet = Hpet::new(virtual_address.as_u64());
-    hpet.enable_counter();
-    hpet
+    Hpet::new(convert_physical_to_virtual(physical_address))
 });
 
 pub struct Hpet {
-    base_address: u64,
+    address: VirtAddr,
     fms_per_tick: u32,
 }
 
 impl Hpet {
-    #[inline]
-    pub fn new(base_address: u64) -> Self {
+    pub fn new(address: VirtAddr) -> Self {
         let fms_per_tick = unsafe {
-            let value = read_volatile(base_address as *const u64);
+            let value: u64 = ptr::read_volatile(address.as_ptr());
             (value >> 32) as u32
         };
 
-        Self {
-            base_address,
+        let hpet = Self {
+            address,
             fms_per_tick,
-        }
+        };
+
+        hpet.enable_counter();
+
+        hpet
     }
 
-    #[inline]
     pub fn elapsed_ns(&self) -> u64 {
         let elapsed_fms = self.elapsed_ticks() * self.fms_per_tick as u64;
         elapsed_fms / 1_000_000
     }
+}
 
+impl Hpet {
     fn enable_counter(&self) {
         unsafe {
-            let configuration_addr = self.base_address + 0x10;
-            let old = read_volatile(configuration_addr as *const u64);
-            write_volatile(configuration_addr as *mut u64, old | 1);
+            let configuration_addr = self.address + 0x10;
+            let old: u64 = ptr::read_volatile(configuration_addr.as_ptr());
+            ptr::write_volatile(configuration_addr.as_mut_ptr(), old | 1);
         }
     }
 
     fn elapsed_ticks(&self) -> u64 {
         unsafe {
-            let counter_l_addr = self.base_address + 0xf0;
-            let counter_h_addr = self.base_address + 0xf4;
+            let counter_l_addr = self.address + 0xf0;
+            let counter_h_addr = self.address + 0xf4;
             loop {
-                let high1 = read_volatile(counter_h_addr as *const u32);
-                let low = read_volatile(counter_l_addr as *const u32);
-                let high2 = read_volatile(counter_h_addr as *const u32);
+                let low: u32 = ptr::read_volatile(counter_l_addr.as_ptr());
+                let high1: u32 = ptr::read_volatile(counter_h_addr.as_ptr());
+                let high2 = ptr::read_volatile(counter_h_addr.as_ptr());
+
                 if high1 == high2 {
                     return (high1 as u64) << 32 | low as u64;
                 }

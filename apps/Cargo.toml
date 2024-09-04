@@ -7,4 +7,5 @@ edition = "2021"
 forced-target = "x86_64-unknown-none"
 
 [dependencies]
-good_memory_allocator = "0.1.7"
+talc = "4.4.1"
+spin = "0.9.8"

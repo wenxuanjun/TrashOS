@@ -2,6 +2,7 @@
 #![no_main]
 
 use core::panic::PanicInfo;
+use kernel::device::ahci::AHCI;
 use kernel::device::hpet::HPET;
 use kernel::device::keyboard::print_keypresses;
 use kernel::device::rtc::RtcDateTime;
@@ -15,9 +16,20 @@ use limine::BaseRevision;
 static BASE_REVISION: BaseRevision = BaseRevision::new();
 
 #[no_mangle]
-extern "C" fn _start() -> ! {
+extern "C" fn kmain() -> ! {
     kernel::init();
     log::info!("HPET elapsed: {} ns", HPET.elapsed_ns());
+
+    let mut ahci_manager = AHCI.lock();
+    log::info!("AHCI disk count: {}", ahci_manager.len());
+
+    if let Some(disk) = ahci_manager.get_disk(0) {
+        log::info!("AHCI identity: {:#?}", disk.get_identity());
+
+        let mut read_buffer = [0u8; 512];
+        disk.read_block(1, &mut read_buffer);
+        log::info!("AHCI first sector: {:?}", read_buffer);
+    }
 
     Thread::new_kernel_thread(print_keypresses);
     Thread::new_kernel_thread(terminal_manual_flush);

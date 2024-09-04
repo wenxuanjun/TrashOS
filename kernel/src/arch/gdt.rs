@@ -5,6 +5,10 @@ use x86_64::structures::gdt::GlobalDescriptorTable;
 use x86_64::structures::gdt::{Descriptor, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
 use x86_64::VirtAddr;
+/*
+I just said that why zed was stucked.
+you see chat
+*/
 
 pub const DOUBLE_FAULT_IST_INDEX: usize = 0;
 const FAULT_STACK_SIZE: usize = 256;

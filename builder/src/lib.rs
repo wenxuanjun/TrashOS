@@ -1,6 +1,5 @@
 use anyhow::Context;
 use fatfs::Dir;
-use flate2::{Compression, GzBuilder};
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::{Path, PathBuf};
@@ -8,9 +7,9 @@ use std::{fs, io};
 use std::{io::Seek, io::SeekFrom};
 use tempfile::NamedTempFile;
 
-const KERNEL: &str = "kernel.gz";
-const LIMINE_EFI: &str = "efi/boot/bootx64.efi";
-const LIMINE_CONFIG: &str = "limine.cfg";
+const KERNEL_FILE_NAME: &str = "kernel";
+const LIMINE_EFI_FILE_NAME: &str = "efi/boot/bootx64.efi";
+const LIMINE_CONFIG_FILE_NAME: &str = "limine.conf";
 
 pub struct ImageBuilder;
 
@@ -21,16 +20,10 @@ impl ImageBuilder {
         limine_config: PathBuf,
         image_path: &Path,
     ) -> anyhow::Result<()> {
-        let mut encoder = GzBuilder::new().read(File::open(kernel)?, Compression::best());
-        let compressed_kernel = NamedTempFile::new().context("failed to create temp file")?;
-
-        let kernel_path = compressed_kernel.path().to_owned();
-        io::copy(&mut encoder, &mut File::create(kernel_path.clone())?).unwrap();
-
         let mut files = BTreeMap::new();
-        files.insert(KERNEL.into(), kernel_path);
-        files.insert(LIMINE_EFI, limine_elf);
-        files.insert(LIMINE_CONFIG, limine_config);
+        files.insert(KERNEL_FILE_NAME.into(), kernel);
+        files.insert(LIMINE_EFI_FILE_NAME, limine_elf);
+        files.insert(LIMINE_CONFIG_FILE_NAME, limine_config);
 
         let fat_partition = NamedTempFile::new().context("failed to create temp file")?;
         FatBuilder::create(files, fat_partition.path())
@@ -58,19 +51,14 @@ impl FatBuilder {
             .open(out_path)
             .unwrap();
 
-        let fat_size = {
-            let mut files_size = 0;
-            for source in files.values() {
-                let len = fs::metadata(source)
-                    .with_context(|| {
-                        format!("failed to read metadata of file `{}`", source.display())
-                    })?
-                    .len();
-                files_size += len;
-            }
-            const ADDITIONAL_SPACE: u64 = 1024 * 64;
-            files_size + ADDITIONAL_SPACE
-        };
+        let files_size = files
+            .values()
+            .map(|source| fs::metadata(source).map(|meta| meta.len()))
+            .collect::<Result<Vec<u64>, _>>()
+            .with_context(|| "failed to read files metadata")?;
+
+        const ADDITIONAL_SPACE: u64 = 1024 * 64;
+        let fat_size = files_size.iter().sum::<u64>() + ADDITIONAL_SPACE;
         fat_file.set_len(fat_size).unwrap();
 
         let format_options = fatfs::FormatVolumeOptions::new();

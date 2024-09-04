@@ -46,10 +46,10 @@ $ cargo run --release -- --boot --kvm --serial
 - [ ] Task lifecycle management
 - [ ] Inter process communication
 - [x] Symmetric multiprocessing
-- [ ] PCI support
+- [x] PCIe support
 - [x] VT100 codes supported terminal
-- [ ] AHCI support
+- [x] AHCI support
 - [ ] Filesystem support
 - [ ] Shell
-- [ ] NVMe support
+- [x] NVMe support
 - [ ] MLFQ scheduler

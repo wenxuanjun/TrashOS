@@ -4,11 +4,13 @@ use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::{OffsetPageTable, PageTable};
 use x86_64::{PhysAddr, VirtAddr};
 
+mod dma;
 mod frame;
 mod kernel_heap;
 mod manager;
 mod page_table;
 
+pub use dma::DmaMemoryManager;
 pub use frame::BitmapFrameAllocator;
 pub use kernel_heap::init_heap;
 pub use manager::{MappingType, MemoryManager};
