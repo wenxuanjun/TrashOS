@@ -66,15 +66,7 @@ impl Ahci {
 
         (0..hba_memory.support_port_count())
             .filter(|&port_num| hba_memory.port_active(port_num))
-            .filter_map(|port_num| {
-                let port = hba_memory.port_ptr(port_num);
-
-                if port.device_connected() && port.is_sata_device() {
-                    Some(port)
-                } else {
-                    None
-                }
-            })
+            .filter_map(|port_num| hba_memory.get_port(port_num))
             .map(|port| port.init_ahci())
             .collect()
     }
@@ -158,11 +150,18 @@ impl HbaMemory {
     fn support_port_count(&self) -> usize {
         self.capability.get().get_bits(0..5) as usize + 1
     }
+}
 
-    unsafe fn port_ptr(&self, port_num: usize) -> &'static HbaPort {
+impl HbaMemory {
+    pub fn get_port(&self, port_num: usize) -> Option<&HbaPort> {
         let hba_ptr = self as *const _ as usize;
         let port_address = hba_ptr + 0x100 + 0x80 * port_num;
-        &*(port_address as *const _)
+
+        let port = unsafe { &*(port_address as *const HbaPort) };
+        match (port.device_connected(), port.is_sata_device()) {
+            (true, true) => Some(port),
+            _ => None,
+        }
     }
 }
 
@@ -205,8 +204,8 @@ impl HbaPort {
 
         let cmd_header = &mut cmd_list[0];
         cmd_header.command_table_base_address = cmd_table_pa.as_u64();
-        cmd_header.flags = (size_of::<FisRegH2D>() / size_of::<u32>()) as u16;
         cmd_header.prdt_length = 1;
+        cmd_header.flags = 4;
 
         let cmd_table = &mut *cmd_table_va.as_mut_ptr::<CommandTable>();
         let prdt = &mut cmd_table.prdt[0];
