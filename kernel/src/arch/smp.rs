@@ -11,7 +11,7 @@ use super::gdt::CpuInfo;
 #[link_section = ".requests"]
 static SMP_REQUEST: SmpRequest = SmpRequest::new();
 
-pub static CPUS: Lazy<RwLock<Cpus>> = Lazy::new(|| RwLock::new(Cpus::new()));
+pub static CPUS: Lazy<RwLock<Cpus>> = Lazy::new(|| RwLock::new(Cpus::default()));
 pub static BSP_LAPIC_ID: Lazy<u32> = Lazy::new(|| SMP_RESPONSE.bsp_lapic_id());
 static SMP_RESPONSE: Lazy<&SmpResponse> = Lazy::new(|| SMP_REQUEST.get_response().unwrap());
 
@@ -31,13 +31,15 @@ impl Cpus {
     }
 }
 
-impl Cpus {
-    pub fn new() -> Self {
+impl Default for Cpus {
+    fn default() -> Self {
         let mut cpus = BTreeMap::new();
-        cpus.insert(*BSP_LAPIC_ID, Box::leak(Box::new(CpuInfo::new())));
+        cpus.insert(*BSP_LAPIC_ID, Box::leak(Box::new(CpuInfo::default())));
         Cpus(cpus)
     }
+}
 
+impl Cpus {
     pub fn init_bsp(&mut self) {
         let bsp_info = self.get_mut(*BSP_LAPIC_ID);
         bsp_info.init();
@@ -49,7 +51,7 @@ impl Cpus {
             if cpu.id == *BSP_LAPIC_ID {
                 continue;
             }
-            let info = Box::leak(Box::new(CpuInfo::new()));
+            let info = Box::leak(Box::new(CpuInfo::default()));
             info.init();
             self.0.insert(cpu.lapic_id, info);
             cpu.goto_address.write(ap_entry);

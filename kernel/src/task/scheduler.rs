@@ -10,7 +10,7 @@ use crate::arch::apic::LAPIC;
 use crate::arch::smp::CPUS;
 
 pub static SCHEDULER_INIT: AtomicBool = AtomicBool::new(false);
-pub static SCHEDULER: Lazy<Mutex<Scheduler>> = Lazy::new(|| Mutex::new(Scheduler::new()));
+pub static SCHEDULER: Lazy<Mutex<Scheduler>> = Lazy::new(|| Mutex::new(Scheduler::default()));
 
 pub fn init() {
     x86_64::instructions::interrupts::enable();
@@ -23,8 +23,8 @@ pub struct Scheduler {
     ready_threads: VecDeque<WeakSharedThread>,
 }
 
-impl Scheduler {
-    pub fn new() -> Self {
+impl Default for Scheduler {
+    fn default() -> Self {
         let current_threads = CPUS
             .read()
             .iter_id()
@@ -36,7 +36,9 @@ impl Scheduler {
             ready_threads: VecDeque::new(),
         }
     }
+}
 
+impl Scheduler {
     #[inline]
     pub fn add(&mut self, thread: WeakSharedThread) {
         self.ready_threads.push_back(thread);
@@ -59,12 +61,10 @@ impl Scheduler {
     pub fn schedule(&mut self, context: VirtAddr) -> VirtAddr {
         let lapic_id = unsafe { LAPIC.lock().id() };
 
-        let last_thread = self.current_threads[&lapic_id]
-            .upgrade()
-            .and_then(|thread| {
-                thread.write().context = Context::from_address(context);
-                Some(self.current_threads[&lapic_id].clone())
-            });
+        let last_thread = self.current_threads[&lapic_id].upgrade().map(|thread| {
+            thread.write().context = Context::from_address(context);
+            self.current_threads[&lapic_id].clone()
+        });
 
         if let Some(next_thread) = self.ready_threads.pop_front() {
             self.current_threads.insert(lapic_id, next_thread);

@@ -36,20 +36,20 @@ pub static ACPI: Lazy<Acpi> = Lazy::new(|| {
         _ => panic!("ACPI does not have interrupt model info!"),
     };
 
-    let pci_regions = PciConfigRegions::new(&acpi_tables).expect("Failed to get PCI regions");
     let hpet_info = HpetInfo::new(acpi_tables).expect("Failed to get HPET info");
+    let pci_regions = PciConfigRegions::new(acpi_tables).expect("Failed to get PCI regions");
 
     Acpi {
         apic,
-        pci_regions,
         hpet_info,
+        pci_regions,
     }
 });
 
 pub struct Acpi<'a> {
     pub apic: Apic<'a, Global>,
-    pub pci_regions: PciConfigRegions<'a, Global>,
     pub hpet_info: HpetInfo,
+    pub pci_regions: PciConfigRegions<'a, Global>,
 }
 
 #[derive(Clone)]

@@ -7,12 +7,10 @@ use apps::syscall::write;
 
 #[no_mangle]
 unsafe fn main() {
-    let mut counter = 0;
-    for _ in 0..300 {
+    for (counter, _) in (0..200).enumerate() {
         let mut buf = String::from("[");
         buf.push_str(&counter.to_string());
         buf.push(']');
-        counter += 1;
         write(buf.as_ptr(), buf.len());
         for _ in 1..10000000 {
             core::arch::asm!("nop");

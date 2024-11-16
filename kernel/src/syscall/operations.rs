@@ -17,7 +17,7 @@ pub fn write(buffer: *const u8, length: usize) {
     };
 }
 
-pub fn malloc(address: usize, length: usize) {
+pub fn mmap(address: usize, length: usize) {
     if length == 0 {
         return;
     }
@@ -28,7 +28,7 @@ pub fn malloc(address: usize, length: usize) {
         MappingType::UserData.flags(),
         &mut unsafe { ref_current_page_table() },
     )
-    .expect("Failed to allocate memory for malloc");
+    .expect("Failed to allocate memory for mmap");
 }
 
 pub fn exit() {

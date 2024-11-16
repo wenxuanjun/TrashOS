@@ -78,7 +78,7 @@ impl<S: PageSize> MemoryManager<S> {
         OffsetPageTable<'static>: Mapper<S>,
         BitmapFrameAllocator: FrameAllocator<S>,
     {
-        interrupts::without_interrupts(|| {
+        interrupts::without_interrupts(|| unsafe {
             let page_range = {
                 let start_page = Page::containing_address(start_address);
                 let end_page = Page::containing_address(start_address + length - 1u64);
@@ -86,10 +86,12 @@ impl<S: PageSize> MemoryManager<S> {
             };
             let mut frame_allocator = super::FRAME_ALLOCATOR.lock();
 
-            for page in page_range {
-                unsafe { page_table.map_to(page, start_frame, flags, &mut *frame_allocator) }
-                    .map(|flush| flush.flush())?;
-            }
+            page_range.enumerate().try_for_each(|(index, page)| {
+                let frame = start_frame + index as u64;
+                page_table
+                    .map_to(page, frame, flags, &mut *frame_allocator)
+                    .map(|flush| flush.flush())
+            })?;
 
             Ok(())
         })

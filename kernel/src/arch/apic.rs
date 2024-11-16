@@ -18,7 +18,7 @@ pub static APIC_INIT: AtomicBool = AtomicBool::new(false);
 pub static CALIBRATED_TIMER_INITIAL: AtomicU32 = AtomicU32::new(0);
 
 pub static LAPIC: Lazy<Mutex<LocalApic>> = Lazy::new(|| unsafe {
-    let physical_address = PhysAddr::new(ACPI.apic.local_apic_address as u64);
+    let physical_address = PhysAddr::new(ACPI.apic.local_apic_address);
     let virtual_address = convert_physical_to_virtual(physical_address);
 
     let mut lapic = LocalApicBuilder::new()
@@ -88,7 +88,7 @@ unsafe fn ioapic_add_entry(irq: IrqVector, vector: InterruptIndex) {
     ioapic.enable_irq(irq as u8);
 }
 
-pub unsafe fn calibrate_timer() {
+unsafe fn calibrate_timer() {
     let mut lapic = LAPIC.lock();
     let mut lapic_total_ticks = 0;
 

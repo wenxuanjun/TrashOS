@@ -7,11 +7,11 @@ use spin::{Lazy, Mutex};
 use vcell::VolatileCell as Volatile;
 use x86_64::{PhysAddr, VirtAddr};
 
-use crate::device::pci::PCI_DEVICES;
+use super::pci::PCI_DEVICES;
 use crate::memory::convert_physical_to_virtual;
-use crate::memory::DmaMemoryManager;
+use crate::memory::DmaManager;
 
-pub static AHCI: Lazy<Mutex<AhciManager>> = Lazy::new(|| Mutex::new(AhciManager::new()));
+pub static AHCI: Lazy<Mutex<AhciManager>> = Lazy::new(|| Mutex::new(AhciManager::default()));
 
 pub struct AhciManager(Vec<Ahci>);
 
@@ -20,13 +20,17 @@ impl AhciManager {
         self.0.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn get_disk(&mut self, index: usize) -> Option<&mut Ahci> {
         self.0.get_mut(index)
     }
 }
 
-impl AhciManager {
-    pub fn new() -> Self {
+impl Default for AhciManager {
+    fn default() -> Self {
         let mut devices = PCI_DEVICES.lock();
         let devices = devices
             .iter_mut()
@@ -39,7 +43,7 @@ impl AhciManager {
                 let (address, _size) = bar.unwrap_mem();
                 let physical_address = PhysAddr::new(address as u64);
                 let virtual_address = convert_physical_to_virtual(physical_address);
-                connections.extend(unsafe { Ahci::new(virtual_address) });
+                connections.extend(Ahci::new(virtual_address));
             }
         }
 
@@ -57,8 +61,8 @@ pub struct Ahci {
 unsafe impl Send for Ahci {}
 
 impl Ahci {
-    pub unsafe fn new(address: VirtAddr) -> Vec<Self> {
-        let hba_memory = &*address.as_mut_ptr::<HbaMemory>();
+    pub fn new(address: VirtAddr) -> Vec<Self> {
+        let hba_memory = unsafe { &*address.as_mut_ptr::<HbaMemory>() };
 
         if !hba_memory.ahci_enabled() {
             return Vec::new();
@@ -67,12 +71,12 @@ impl Ahci {
         (0..hba_memory.support_port_count())
             .filter(|&port_num| hba_memory.port_active(port_num))
             .filter_map(|port_num| hba_memory.get_port(port_num))
-            .map(|port| port.init_ahci())
+            .map(|port| unsafe { port.init_ahci() })
             .collect()
     }
 
     pub fn get_identity(&mut self) -> DiskIdentify {
-        self.execute_command(CMD_IDENTIFY_DEVICE, 0);
+        unsafe { self.execute_command(CMD_IDENTIFY_DEVICE, 0) }
         let packet = unsafe { &*(self.data.as_ptr() as *const SataIdentify) };
 
         DiskIdentify::new(
@@ -84,20 +88,20 @@ impl Ahci {
     }
 
     pub fn read_block(&mut self, start_sector: u64, buffer: &mut [u8]) {
-        self.execute_command(CMD_READ_DMA_EXT, start_sector);
+        unsafe { self.execute_command(CMD_READ_DMA_EXT, start_sector) }
         let length = buffer.len().min(BLOCK_SIZE);
-        buffer.copy_from_slice(&self.data.as_ref()[..length]);
+        buffer.copy_from_slice(&self.data[..length]);
     }
 
     pub fn write_block(&mut self, start_sector: u64, buffer: &[u8]) {
         let length = buffer.len().min(BLOCK_SIZE);
-        self.data.as_mut()[..length].copy_from_slice(&buffer[..length]);
-        self.execute_command(CMD_WRITE_DMA_EXT, start_sector);
+        self.data[..length].copy_from_slice(&buffer[..length]);
+        unsafe { self.execute_command(CMD_WRITE_DMA_EXT, start_sector) }
     }
 
-    fn execute_command(&mut self, command: u8, start_sector: u64) {
+    unsafe fn execute_command(&mut self, command: u8, start_sector: u64) {
         let cmd_table = &mut *self.cmd_table;
-        let fis = &mut cmd_table.cfis;
+        let fis = &mut *(cmd_table.cfis.as_mut_ptr() as *mut FisRegH2D);
         fis.fis_type = FIS_TYPE_REG_H2D;
         fis.cflags = 1 << 7;
         fis.command = command;
@@ -110,16 +114,16 @@ impl Ahci {
         fis.sector_count = if command == CMD_IDENTIFY_DEVICE { 0 } else { 1 };
         fis.set_lba(start_sector);
 
-        self.port.command_issue.set(1 << (0 as u32));
+        self.port.command_issue.set(1 << 0);
         while self.port.command_issue.get().get_bit(0) {}
     }
 }
 
 impl Drop for Ahci {
     fn drop(&mut self) {
-        DmaMemoryManager::deallocate(VirtAddr::from_ptr(self.cmd_list.as_ptr()));
-        DmaMemoryManager::deallocate(VirtAddr::from_ptr(self.cmd_table as *const _));
-        DmaMemoryManager::deallocate(VirtAddr::from_ptr(self.data.as_ptr()));
+        DmaManager::deallocate(VirtAddr::from_ptr(self.cmd_list.as_ptr()));
+        DmaManager::deallocate(VirtAddr::from_ptr(self.cmd_table as *const _));
+        DmaManager::deallocate(VirtAddr::from_ptr(self.data.as_ptr()));
     }
 }
 
@@ -158,10 +162,7 @@ impl HbaMemory {
         let port_address = hba_ptr + 0x100 + 0x80 * port_num;
 
         let port = unsafe { &*(port_address as *const HbaPort) };
-        match (port.device_connected(), port.is_sata_device()) {
-            (true, true) => Some(port),
-            _ => None,
-        }
+        (port.device_connected() && port.is_sata_device()).then_some(port)
     }
 }
 
@@ -192,20 +193,20 @@ impl HbaPort {
     unsafe fn init_ahci(&'static self) -> Ahci {
         self.stop_cmd();
 
-        let (cmd_list_pa, cmd_list_va) = DmaMemoryManager::allocate();
-        let (cmd_table_pa, cmd_table_va) = DmaMemoryManager::allocate();
-        let (data_pa, data_va) = DmaMemoryManager::allocate();
+        let (cmd_list_pa, cmd_list_va) = DmaManager::allocate(size_of::<CommandHeader>());
+        let (cmd_table_pa, cmd_table_va) = DmaManager::allocate(size_of::<CommandTable>());
+        let (data_pa, data_va) = DmaManager::allocate(BLOCK_SIZE);
 
         self.command_list_base_address.set(cmd_list_pa.as_u64());
 
-        let cmd_list_size = DmaMemoryManager::UNIT_SIZE / size_of::<CommandHeader>();
+        let cmd_list_size = DmaManager::UNIT_SIZE / size_of::<CommandHeader>();
         let cmd_list_ptr = cmd_list_va.as_mut_ptr::<CommandHeader>();
         let cmd_list = slice::from_raw_parts_mut(cmd_list_ptr, cmd_list_size);
 
         let cmd_header = &mut cmd_list[0];
         cmd_header.command_table_base_address = cmd_table_pa.as_u64();
+        cmd_header.flags = (size_of::<FisRegH2D>() / size_of::<u32>()) as u16;
         cmd_header.prdt_length = 1;
-        cmd_header.flags = 4;
 
         let cmd_table = &mut *cmd_table_va.as_mut_ptr::<CommandTable>();
         let prdt = &mut cmd_table.prdt[0];
@@ -220,7 +221,7 @@ impl HbaPort {
             cmd_list,
             cmd_table,
             data,
-            port: &self,
+            port: self,
         }
     }
 
@@ -239,10 +240,10 @@ impl HbaPort {
     }
 
     fn is_sata_device(&self) -> bool {
-        match self.signature.get() {
-            SATA_SIG_ATAPI | SATA_SIG_SEMB | SATA_SIG_PM => false,
-            _ => true,
-        }
+        !matches!(
+            self.signature.get(),
+            SATA_SIG_ATAPI | SATA_SIG_SEMB | SATA_SIG_PM
+        )
     }
 
     fn device_connected(&self) -> bool {
@@ -264,7 +265,7 @@ struct CommandHeader {
 
 #[repr(C)]
 struct CommandTable {
-    cfis: FisRegH2D,
+    cfis: [u8; 64],
     acmd: [u8; 16],
     reserved: [u8; 48],
     prdt: [PrdtEntry; 1],
@@ -292,14 +293,14 @@ struct FisRegH2D {
     lba_5: u8,
     feature_hi: u8,
     sector_count: u16,
-    command_completion: u8,
+    icc: u8,
     control: u8,
-    _padding: [u8; 48],
+    _padding: [u8; 4],
 }
 
 impl FisRegH2D {
     fn set_lba(&mut self, lba: u64) {
-        self.lba_0 = (lba >> 0) as u8;
+        self.lba_0 = lba as u8;
         self.lba_1 = (lba >> 8) as u8;
         self.lba_2 = (lba >> 16) as u8;
         self.lba_3 = (lba >> 24) as u8;
@@ -325,7 +326,7 @@ struct SataIdentify {
     lba48_sectors: u64,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug)]
 pub struct DiskIdentify {
     pub serial_number: String,
     pub firmware_revision: String,

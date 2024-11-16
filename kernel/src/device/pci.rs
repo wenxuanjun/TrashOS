@@ -9,7 +9,8 @@ use pci_types::*;
 use spin::{Lazy, Mutex};
 use x86_64::{PhysAddr, VirtAddr};
 
-use crate::{arch::acpi::ACPI, memory::convert_physical_to_virtual};
+use crate::arch::acpi::ACPI;
+use crate::memory::convert_physical_to_virtual;
 
 pub static PCI_DEVICES: Lazy<Mutex<Vec<PciDevice>>> = Lazy::new(|| {
     let pci_access = PciAccess::new(&ACPI.pci_regions);
@@ -40,7 +41,7 @@ impl<'a> PciAccess<'a> {
     }
 }
 
-impl<'a> ConfigRegionAccess for PciAccess<'a> {
+impl ConfigRegionAccess for PciAccess<'_> {
     unsafe fn read(&self, address: PciAddress, offset: u16) -> u32 {
         let address = self.mmio_address(address, offset);
         ptr::read_volatile(address.as_ptr())

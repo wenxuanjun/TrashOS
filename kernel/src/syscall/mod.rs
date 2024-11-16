@@ -1,4 +1,3 @@
-use core::arch::asm;
 use x86_64::registers::model_specific::{Efer, EferFlags};
 use x86_64::registers::model_specific::{LStar, SFMask, Star};
 use x86_64::registers::rflags::RFlags;
@@ -11,10 +10,8 @@ mod matcher;
 mod operations;
 
 pub fn init() {
-    let handler_addr = syscall_handler as *const () as u64;
-
     SFMask::write(RFlags::INTERRUPT_FLAG);
-    LStar::write(VirtAddr::new(handler_addr as u64));
+    LStar::write(VirtAddr::from_ptr(syscall_handler as *const ()));
 
     let (code_selector, data_selector) = Selectors::get_kernel_segments();
     let (user_code_selector, user_data_selector) = Selectors::get_user_segments();
@@ -35,7 +32,7 @@ pub fn init() {
 #[naked]
 extern "C" fn syscall_handler() {
     unsafe {
-        asm!(
+        core::arch::naked_asm!(
             "push rcx",
             "push r11",
             "push rbp",
@@ -59,7 +56,6 @@ extern "C" fn syscall_handler() {
             "pop rcx",
             "sysretq",
             syscall_matcher = sym syscall_matcher,
-            options(noreturn)
         );
     }
 }

@@ -5,9 +5,9 @@ pub fn write(buffer: *const u8, length: usize) -> usize {
     syscall2(WRITE_SYSCALL_NUMBER, buffer as usize, length)
 }
 
-pub fn malloc(address: usize, length: usize) -> usize {
-    const MALLOC_SYSCALL_NUMBER: u64 = 2;
-    syscall2(MALLOC_SYSCALL_NUMBER, address, length)
+pub fn mmap(address: usize, length: usize) -> usize {
+    const MMAP_SYSCALL_NUMBER: u64 = 2;
+    syscall2(MMAP_SYSCALL_NUMBER, address, length)
 }
 
 pub fn exit() -> ! {

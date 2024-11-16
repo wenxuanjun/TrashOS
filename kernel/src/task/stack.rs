@@ -10,22 +10,28 @@ const USER_STACK_SIZE: usize = 256 * 1024;
 
 pub struct KernelStack(Box<[u8]>);
 
-impl KernelStack {
-    pub fn new() -> Self {
+impl Default for KernelStack {
+    fn default() -> Self {
         Self(Box::from(alloc::vec![0; KERNEL_STACK_SIZE]))
     }
+}
 
+impl KernelStack {
     pub fn end_address(&self) -> VirtAddr {
         VirtAddr::new(self.0.as_ptr_range().end as u64)
     }
 }
 
-pub struct UserStack {
-    pub end_address: VirtAddr,
+pub struct UserStack;
+
+impl UserStack {
+    pub fn end_address() -> VirtAddr {
+        VirtAddr::new(USER_STACK_END as u64)
+    }
 }
 
 impl UserStack {
-    pub fn new(page_table: &mut OffsetPageTable<'static>) -> Self {
+    pub fn map(page_table: &mut OffsetPageTable<'static>) {
         let end_address = VirtAddr::new(USER_STACK_END as u64);
 
         MemoryManager::alloc_range(
@@ -35,7 +41,5 @@ impl UserStack {
             page_table,
         )
         .unwrap();
-
-        Self { end_address }
     }
 }

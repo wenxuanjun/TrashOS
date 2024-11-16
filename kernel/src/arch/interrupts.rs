@@ -6,8 +6,8 @@ use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::structures::idt::PageFaultErrorCode;
 use x86_64::VirtAddr;
 
+use super::apic::LAPIC;
 use super::gdt::DOUBLE_FAULT_IST_INDEX;
-use crate::arch::apic::LAPIC;
 use crate::task::scheduler::SCHEDULER;
 
 const INTERRUPT_INDEX_OFFSET: u8 = 32;
@@ -44,19 +44,18 @@ pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
             .set_stack_index(DOUBLE_FAULT_IST_INDEX as u16);
     }
 
-    return idt;
+    idt
 });
 
 #[naked]
 extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
     fn timer_handler(context: VirtAddr) -> VirtAddr {
-        let context = SCHEDULER.lock().schedule(context);
         super::apic::end_of_interrupt();
-        context
+        SCHEDULER.lock().schedule(context)
     }
 
     unsafe {
-        core::arch::asm!(
+        core::arch::naked_asm!(
             "cli",
             crate::push_context!(),
             "mov rdi, rsp",
@@ -66,7 +65,6 @@ extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
             "sti",
             "iretq",
             timer_handler = sym timer_handler,
-            options(noreturn)
         );
     }
 }
@@ -110,7 +108,7 @@ extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, error_code: u
 
 extern "x86-interrupt" fn keyboard_interrupt(_frame: InterruptStackFrame) {
     let scancode: u8 = unsafe { PortReadOnly::new(0x60).read() };
-    crate::device::keyboard::add_scancode(scancode);
+    crate::device::terminal::terminal_handle_keyboard(scancode);
     super::apic::end_of_interrupt();
 }
 
@@ -121,8 +119,8 @@ extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {
 }
 
 extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error_code: PageFaultErrorCode) {
-    log::warn!("Processor: {}", unsafe { LAPIC.lock().id() });
     log::warn!("Exception: Page Fault\n{:#?}", frame);
+    log::warn!("Processor: {}", unsafe { LAPIC.lock().id() });
     log::warn!("Error Code: {:#x}", error_code);
     match Cr2::read() {
         Ok(address) => {

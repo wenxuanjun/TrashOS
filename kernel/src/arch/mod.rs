@@ -17,7 +17,9 @@ unsafe extern "C" fn ap_entry(smp_info: &Cpu) -> ! {
     CPUS.write().get(smp_info.lapic_id).load();
     IDT.load();
 
-    while !APIC_INIT.load(Ordering::SeqCst) {}
+    while !APIC_INIT.load(Ordering::SeqCst) {
+        core::hint::spin_loop()
+    }
     LAPIC.lock().enable();
 
     let timer_initial = CALIBRATED_TIMER_INITIAL.load(Ordering::SeqCst);
@@ -25,7 +27,9 @@ unsafe extern "C" fn ap_entry(smp_info: &Cpu) -> ! {
 
     syscall::init();
 
-    while !SCHEDULER_INIT.load(Ordering::SeqCst) {}
+    while !SCHEDULER_INIT.load(Ordering::SeqCst) {
+        core::hint::spin_loop()
+    }
     x86_64::instructions::interrupts::enable();
     log::debug!("Application Processor {} started", smp_info.id);
 

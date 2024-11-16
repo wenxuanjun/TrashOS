@@ -4,13 +4,14 @@ use x86_64::registers::control::Cr3;
 use x86_64::structures::paging::{OffsetPageTable, PageTable};
 use x86_64::{PhysAddr, VirtAddr};
 
+mod bitmap;
 mod dma;
 mod frame;
 mod kernel_heap;
 mod manager;
 mod page_table;
 
-pub use dma::DmaMemoryManager;
+pub use dma::DmaManager;
 pub use frame::BitmapFrameAllocator;
 pub use kernel_heap::init_heap;
 pub use manager::{MappingType, MemoryManager};
@@ -39,17 +40,17 @@ pub static KERNEL_PAGE_TABLE: Lazy<Mutex<OffsetPageTable>> = Lazy::new(|| {
 
 #[inline]
 pub fn convert_physical_to_virtual(physical_address: PhysAddr) -> VirtAddr {
-    VirtAddr::new(physical_address.as_u64() + PHYSICAL_MEMORY_OFFSET.clone())
+    VirtAddr::new(physical_address.as_u64() + *PHYSICAL_MEMORY_OFFSET)
 }
 
 #[inline]
 pub fn convert_virtual_to_physical(virtual_address: VirtAddr) -> PhysAddr {
-    PhysAddr::new(virtual_address.as_u64() - PHYSICAL_MEMORY_OFFSET.clone())
+    PhysAddr::new(virtual_address.as_u64() - *PHYSICAL_MEMORY_OFFSET)
 }
 
 pub unsafe fn ref_current_page_table() -> OffsetPageTable<'static> {
     let physical_address = Cr3::read().0.start_address();
     let page_table = convert_physical_to_virtual(physical_address).as_mut_ptr::<PageTable>();
-    let physical_memory_offset = VirtAddr::new(PHYSICAL_MEMORY_OFFSET.clone());
+    let physical_memory_offset = VirtAddr::new(*PHYSICAL_MEMORY_OFFSET);
     OffsetPageTable::new(&mut *page_table, physical_memory_offset)
 }

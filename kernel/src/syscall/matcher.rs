@@ -8,7 +8,7 @@ use super::operations::*;
 enum SyscallIndex {
     Read,
     Write,
-    Malloc,
+    Mmap,
     Exit,
 }
 
@@ -37,7 +37,7 @@ pub extern "C" fn syscall_matcher(
     match SyscallIndex::from(syscall_number_raw) {
         SyscallIndex::Read => unimplemented!(),
         SyscallIndex::Write => write(arg1 as *const u8, arg2),
-        SyscallIndex::Malloc => malloc(arg1, arg2),
+        SyscallIndex::Mmap => mmap(arg1, arg2),
         SyscallIndex::Exit => exit(),
     }
 }

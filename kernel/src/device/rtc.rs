@@ -12,8 +12,8 @@ pub struct RtcDateTime {
     year: u8,
 }
 
-impl RtcDateTime {
-    pub fn new() -> Self {
+impl Default for RtcDateTime {
+    fn default() -> Self {
         let mut rtc_time = Self {
             second: Self::get_rtc_register(0x00),
             minute: Self::get_rtc_register(0x02),
@@ -43,7 +43,9 @@ impl RtcDateTime {
 
         rtc_time
     }
+}
 
+impl RtcDateTime {
     fn get_rtc_register(idx: u8) -> u8 {
         unsafe {
             Port::new(0x70).write(idx);

@@ -19,7 +19,7 @@ pub(super) type SharedProcess = Arc<RwLock<Box<Process>>>;
 pub(super) type WeakSharedProcess = Weak<RwLock<Box<Process>>>;
 
 static PROCESSES: RwLock<VecDeque<SharedProcess>> = RwLock::new(VecDeque::new());
-pub static KERNEL_PROCESS: Lazy<SharedProcess> = Lazy::new(|| Process::new_kernel_process());
+pub static KERNEL_PROCESS: Lazy<SharedProcess> = Lazy::new(Process::new_kernel_process);
 
 const KERNEL_PROCESS_NAME: &str = "kernel";
 
@@ -60,11 +60,11 @@ impl Process {
     }
 
     pub fn new_user_process(name: &str, elf_data: &'static [u8]) {
-        let binary = ProcessBinary::parse(elf_data);
+        let binary = ProcessBinary::new(elf_data);
         interrupts::without_interrupts(|| {
             let process = Arc::new(RwLock::new(Box::new(Self::new(name))));
-            ProcessBinary::map_segments(&binary, &mut process.write().page_table);
-            Thread::new_user_thread(Arc::downgrade(&process), binary.entry() as usize);
+            binary.map_segments(&mut process.write().page_table);
+            Thread::new_user_thread(Arc::downgrade(&process), binary.entry());
             PROCESSES.write().push_back(process.clone());
         });
     }
@@ -80,17 +80,22 @@ impl Process {
     }
 }
 
-struct ProcessBinary;
+struct ProcessBinary(File<'static>);
 
 impl ProcessBinary {
-    fn parse(bin: &'static [u8]) -> File<'static> {
-        File::parse(bin).expect("Failed to parse ELF binary")
+    pub fn new(bin: &'static [u8]) -> Self {
+        Self(File::parse(bin).expect("Invalid ELF data"))
     }
 
-    fn map_segments(elf_file: &File, page_table: &mut OffsetPageTable<'static>) {
-        for segment in elf_file.segments() {
+    #[inline]
+    pub fn entry(&self) -> usize {
+        self.0.entry() as usize
+    }
+
+    pub fn map_segments(&self, page_table: &mut OffsetPageTable<'static>) {
+        for segment in self.0.segments() {
             MemoryManager::alloc_range(
-                VirtAddr::new(segment.address() as u64),
+                VirtAddr::new(segment.address()),
                 segment.size(),
                 MappingType::UserCode.flags(),
                 page_table,

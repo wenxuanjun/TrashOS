@@ -1,18 +1,21 @@
-use x86_64::structures::paging::{FrameAllocator, FrameDeallocator};
+use x86_64::structures::paging::FrameDeallocator;
 use x86_64::structures::paging::{PageSize, Size4KiB};
 use x86_64::{structures::paging::PhysFrame, PhysAddr, VirtAddr};
 
-use crate::memory::FRAME_ALLOCATOR;
-use crate::memory::{convert_physical_to_virtual, convert_virtual_to_physical};
+use super::FRAME_ALLOCATOR;
+use super::{convert_physical_to_virtual, convert_virtual_to_physical};
 
-pub struct DmaMemoryManager;
+pub struct DmaManager;
 
-impl DmaMemoryManager {
+impl DmaManager {
     pub const UNIT_SIZE: usize = Size4KiB::SIZE as usize;
 
-    pub fn allocate() -> (PhysAddr, VirtAddr) {
-        let physical_address = FRAME_ALLOCATOR.lock().allocate_frame().unwrap();
-        let physical_address = physical_address.start_address();
+    pub fn allocate(size: usize) -> (PhysAddr, VirtAddr) {
+        let count = size.div_ceil(Self::UNIT_SIZE);
+
+        let physical_address = FRAME_ALLOCATOR.lock().allocate_frames(count).unwrap();
+        let physical_address = PhysAddr::new(physical_address.start_address().as_u64());
+
         let virtual_address = convert_physical_to_virtual(physical_address);
         (physical_address, virtual_address)
     }

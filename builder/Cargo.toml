@@ -5,12 +5,12 @@ version = "0.1.0"
 
 [dependencies]
 argh = "0.1.12"
-anyhow = "1.0.32"
-tempfile = "3.3.0"
-gpt = "3.0.0"
+anyhow = "1.0.93"
+tempfile = "3.14.0"
+gpt = "4.0.0"
 
 [dependencies.fatfs]
-version = "0.3.4"
+version = "0.3.6"
 default-features = false
 features = ["std", "alloc"]
 

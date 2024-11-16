@@ -47,7 +47,7 @@ impl ExtendedPageTable for OffsetPageTable<'_> {
 
     unsafe fn free_user_page_table(&self) {
         let mut frame_allocator = FRAME_ALLOCATOR.lock();
-        free_pages_recursion(&mut frame_allocator, self.physical_address(), 4);
+        free_from_recursion(&mut frame_allocator, self.physical_address(), 4);
     }
 }
 
@@ -97,7 +97,7 @@ unsafe fn new_from_recursion(
     }
 }
 
-unsafe fn free_pages_recursion(
+unsafe fn free_from_recursion(
     frame_allocator: &mut BitmapFrameAllocator,
     physical_address: PhysAddr,
     page_table_level: u8,
@@ -122,7 +122,7 @@ unsafe fn free_pages_recursion(
                 }
             }
         } else {
-            free_pages_recursion(frame_allocator, entry.addr(), page_table_level - 1);
+            free_from_recursion(frame_allocator, entry.addr(), page_table_level - 1);
         }
     }
 

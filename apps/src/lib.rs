@@ -10,7 +10,7 @@ pub mod memory;
 pub mod syscall;
 
 extern "C" {
-    fn main() -> ();
+    fn main();
 }
 
 #[panic_handler]
@@ -20,7 +20,6 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[no_mangle]
 unsafe extern "sysv64" fn _start() -> ! {
-    memory::init_heap();
     main();
     syscall::exit();
 }

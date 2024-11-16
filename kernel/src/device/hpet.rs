@@ -63,5 +63,3 @@ impl Hpet {
         }
     }
 }
-
-unsafe impl Sync for Hpet {}

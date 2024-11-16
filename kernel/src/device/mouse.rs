@@ -1,8 +1,8 @@
 use bitflags::bitflags;
-use spin::Mutex;
+use spin::{Lazy, Mutex};
 use x86_64::instructions::port::Port;
 
-pub static MOUSE: Mutex<Mouse> = Mutex::new(Mouse::new());
+pub static MOUSE: Lazy<Mutex<Mouse>> = Lazy::new(|| Mutex::new(Mouse::default()));
 
 pub fn init() {
     let mut mouse = MOUSE.lock();
@@ -13,7 +13,7 @@ pub fn init() {
     }
 
     mouse.set_complete_handler(|state: MouseState| {
-        crate::println!("{:?}", state);
+        log::info!("{:?}", state);
     });
 
     log::debug!("Mouse Type: {:?}", mouse.mouse_type);
@@ -51,8 +51,8 @@ pub struct MouseState {
     move_y: i16,
 }
 
-impl MouseState {
-    pub const fn new() -> MouseState {
+impl Default for MouseState {
+    fn default() -> Self {
         MouseState {
             flags: MouseFlags::empty(),
             additional_flags: MouseAdditionalFlags::None,
@@ -79,18 +79,20 @@ pub struct Mouse {
     complete_handler: Option<fn(MouseState)>,
 }
 
-impl Mouse {
-    pub const fn new() -> Mouse {
-        Mouse {
+impl Default for Mouse {
+    fn default() -> Self {
+        Self {
             command_port: Port::new(0x64),
             data_port: Port::new(0x60),
             current_packet_index: 0,
-            current_state: MouseState::new(),
+            current_state: MouseState::default(),
             mouse_type: MouseType::Standard,
             complete_handler: None,
         }
     }
+}
 
+impl Mouse {
     pub fn init(&mut self) -> Result<(), &'static str> {
         unsafe {
             self.enable_packet_streaming()?
@@ -142,28 +144,28 @@ impl Mouse {
             }
             _ => unreachable!(),
         }
-        if self.current_packet_index % modulo == modulo - 1 {
-            if self.complete_handler.is_some() {
-                (self.complete_handler.unwrap())(self.current_state);
-            }
+        if self.current_packet_index % modulo == modulo - 1 && self.complete_handler.is_some() {
+            (self.complete_handler.unwrap())(self.current_state);
         }
         self.current_packet_index += 1;
         self.current_packet_index %= modulo;
     }
 
+    #[inline]
     pub fn set_complete_handler(&mut self, handler: fn(MouseState)) {
         self.complete_handler = Some(handler);
     }
 
+    #[inline]
     unsafe fn enable_packet_streaming(&mut self) -> Result<&mut Self, &'static str> {
-        Ok(self.send_command(0xf4 as u8)?)
+        self.send_command(0xf4)
     }
 
     unsafe fn enable_scroll_wheel(&mut self) -> Result<&mut Self, &'static str> {
         self.send_command(0xf3)?.send_command(200)?;
         self.send_command(0xf3)?.send_command(100)?;
         self.send_command(0xf3)?.send_command(80)?;
-        self.send_command(0xf2 as u8)?;
+        self.send_command(0xf2)?;
         if self.read_data_port()? == 0x3 {
             self.mouse_type = MouseType::OnlyScroll;
         }
@@ -174,7 +176,7 @@ impl Mouse {
         self.send_command(0xf3)?.send_command(200)?;
         self.send_command(0xf3)?.send_command(200)?;
         self.send_command(0xf3)?.send_command(80)?;
-        self.send_command(0xf2 as u8)?;
+        self.send_command(0xf2)?;
         if self.read_data_port()? == 0x4 {
             self.mouse_type = MouseType::FiveButton;
         }
@@ -197,12 +199,14 @@ impl Mouse {
 
     unsafe fn write_command_port(&mut self, value: u8) -> Result<(), &'static str> {
         self.wait_for_write()?;
-        Ok(self.command_port.write(value))
+        self.command_port.write(value);
+        Ok(())
     }
 
     unsafe fn write_data_port(&mut self, value: u8) -> Result<(), &'static str> {
         self.wait_for_write()?;
-        Ok(self.data_port.write(value))
+        self.data_port.write(value);
+        Ok(())
     }
 
     unsafe fn wait_for_read(&mut self) -> Result<(), &'static str> {

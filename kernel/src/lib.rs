@@ -4,14 +4,13 @@
 #![feature(naked_functions)]
 #![feature(variant_count)]
 #![feature(allocator_api)]
-#![feature(thread_local)]
-#![feature(panic_can_unwind)]
 
 pub mod arch;
 pub mod device;
 pub mod memory;
 pub mod syscall;
 pub mod task;
+pub mod unwind;
 
 extern crate alloc;
 

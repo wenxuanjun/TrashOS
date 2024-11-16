@@ -1,17 +1,14 @@
 use alloc::alloc::Layout;
-use talc::{ClaimOnOom, Span, Talc, Talck};
+use good_memory_allocator::SpinLockedAllocator;
 use x86_64::VirtAddr;
 
-use super::MappingType;
-use super::KERNEL_PAGE_TABLE;
-use crate::memory::MemoryManager;
+use super::{MappingType, MemoryManager, KERNEL_PAGE_TABLE};
 
 pub const HEAP_START: usize = 0x114514000000;
-pub const HEAP_SIZE: usize = 32 * 1024 * 1024;
+pub const HEAP_SIZE: usize = 8 * 1024 * 1024;
 
 #[global_allocator]
-static ALLOCATOR: Talck<spin::Mutex<()>, ClaimOnOom> =
-    Talc::new(unsafe { ClaimOnOom::new(Span::empty()) }).lock();
+static ALLOCATOR: SpinLockedAllocator = SpinLockedAllocator::empty();
 
 #[alloc_error_handler]
 fn alloc_error_handler(layout: Layout) -> ! {
@@ -30,7 +27,6 @@ pub fn init_heap() {
     .unwrap();
 
     unsafe {
-        let arena = Span::from_base_size(heap_start.as_mut_ptr(), HEAP_SIZE);
-        ALLOCATOR.lock().claim(arena).unwrap();
+        ALLOCATOR.init(HEAP_START, HEAP_SIZE);
     }
 }

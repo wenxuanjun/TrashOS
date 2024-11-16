@@ -21,7 +21,7 @@ impl ImageBuilder {
         image_path: &Path,
     ) -> anyhow::Result<()> {
         let mut files = BTreeMap::new();
-        files.insert(KERNEL_FILE_NAME.into(), kernel);
+        files.insert(KERNEL_FILE_NAME, kernel);
         files.insert(LIMINE_EFI_FILE_NAME, limine_elf);
         files.insert(LIMINE_CONFIG_FILE_NAME, limine_config);
 
@@ -48,6 +48,7 @@ impl FatBuilder {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(true)
             .open(out_path)
             .unwrap();
 
@@ -57,7 +58,7 @@ impl FatBuilder {
             .collect::<Result<Vec<u64>, _>>()
             .with_context(|| "failed to read files metadata")?;
 
-        const ADDITIONAL_SPACE: u64 = 1024 * 64;
+        const ADDITIONAL_SPACE: u64 = 1024 * 128;
         let fat_size = files_size.iter().sum::<u64>() + ADDITIONAL_SPACE;
         fat_file.set_len(fat_size).unwrap();
 
@@ -106,6 +107,7 @@ impl DiskCreator {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(true)
             .open(out_gpt_path)
             .with_context(|| {
                 format!("failed to create GPT file at `{}`", out_gpt_path.display())
@@ -127,7 +129,6 @@ impl DiskCreator {
         let block_size = gpt::disk::LogicalBlockSize::Lb512;
         let mut gpt = gpt::GptConfig::new()
             .writable(true)
-            .initialized(false)
             .logical_block_size(block_size)
             .create_from_device(Box::new(&mut disk), None)
             .context("failed to create GPT structure in file")?;

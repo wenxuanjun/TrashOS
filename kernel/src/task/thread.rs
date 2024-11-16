@@ -34,14 +34,12 @@ pub struct Thread {
 
 impl Thread {
     pub fn new(process: WeakSharedProcess) -> Self {
-        let thread = Thread {
+        Self {
             id: ThreadId::new(),
             context: Context::default(),
-            kernel_stack: KernelStack::new(),
+            kernel_stack: KernelStack::default(),
             process,
-        };
-
-        thread
+        }
     }
 
     pub fn get_init_thread() -> WeakSharedThread {
@@ -73,11 +71,11 @@ impl Thread {
         let mut thread = Self::new(process.clone());
         let process = process.upgrade().unwrap();
         let mut process = process.write();
-        let user_stack = UserStack::new(&mut process.page_table);
+        UserStack::map(&mut process.page_table);
 
         thread.context.init(
             entry_point,
-            user_stack.end_address,
+            UserStack::end_address(),
             process.page_table.physical_address(),
             Selectors::get_user_segments(),
         );

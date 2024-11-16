@@ -47,9 +47,13 @@ fn main() {
         cmd.arg("-smp").arg(format!("cores={}", args.cores));
         cmd.arg("-cpu").arg("qemu64,+x2apic");
 
+        let drive_config = format!("if=none,format=raw,id=disk1,file={}", img_path.display());
         cmd.arg("-device").arg("ahci,id=ahci");
-        let drive_config = format!("format=raw,id=disk1,file={},if=none", img_path.display());
         cmd.arg("-device").arg("ide-hd,drive=disk1,bus=ahci.0");
+        cmd.arg("-drive").arg(drive_config);
+
+        let drive_config = format!("if=none,format=raw,id=disk2,file={}", img_path.display());
+        cmd.arg("-device").arg("nvme,drive=disk2,serial=deadbeef");
         cmd.arg("-drive").arg(drive_config);
 
         if args.kvm {

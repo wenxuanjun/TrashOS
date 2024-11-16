@@ -23,8 +23,8 @@ pub struct Display {
     pixel_format: PixelFormat,
 }
 
-impl Display {
-    pub fn new() -> Self {
+impl Default for Display {
+    fn default() -> Self {
         let response = FRAMEBUFFER_REQUEST.get_response().unwrap();
         let frame_buffer = response.framebuffers().next().take().unwrap();
 

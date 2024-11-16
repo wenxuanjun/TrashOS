@@ -49,7 +49,9 @@ $ cargo run --release -- --boot --kvm --serial
 - [x] PCIe support
 - [x] VT100 codes supported terminal
 - [x] AHCI support
+- [ ] Block device abstraction
 - [ ] Filesystem support
 - [ ] Shell
-- [x] NVMe support
-- [ ] MLFQ scheduler
+- [ ] NVMe support
+- [ ] Brain Fuck Scheduler
+- [ ] Enlargable & shrinkable heap
