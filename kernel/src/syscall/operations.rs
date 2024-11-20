@@ -1,7 +1,9 @@
+use alloc::sync::Arc;
 use core::{slice, str};
 use x86_64::VirtAddr;
 
-use crate::memory::{ref_current_page_table, MappingType, MemoryManager};
+use crate::memory::ref_current_page_table;
+use crate::memory::{MappingType, MemoryManager};
 use crate::task::scheduler::SCHEDULER;
 
 pub fn write(buffer: *const u8, length: usize) {
@@ -26,25 +28,22 @@ pub fn mmap(address: usize, length: usize) {
         VirtAddr::new(address as u64),
         length as u64,
         MappingType::UserData.flags(),
-        &mut unsafe { ref_current_page_table() },
+        unsafe { &mut ref_current_page_table() },
     )
     .expect("Failed to allocate memory for mmap");
 }
 
 pub fn exit() {
-    {
-        let current_thread = {
-            let mut scheduler = SCHEDULER.lock();
-            let thread = scheduler.current_thread();
-            scheduler.remove(thread.clone());
-            thread
-        };
+    let current_thread = SCHEDULER.lock().current_thread();
 
-        if let Some(current_thread) = current_thread.upgrade() {
-            let current_thread = current_thread.read();
-            if let Some(process) = current_thread.process.upgrade() {
-                process.read().exit_process();
+    if let Some(current_thread) = current_thread.upgrade() {
+        let current_thread = current_thread.read();
+        if let Some(process) = current_thread.process.upgrade() {
+            let mut scheduler = SCHEDULER.lock();
+            for thread in process.read().threads.iter() {
+                scheduler.remove(Arc::downgrade(&thread));
             }
+            process.read().exit_process();
         }
     }
 

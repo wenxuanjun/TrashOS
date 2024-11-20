@@ -2,16 +2,13 @@
 #![no_main]
 
 extern crate alloc;
-use alloc::string::{String, ToString};
-use apps::syscall::write;
+use alloc::format;
 
 #[no_mangle]
 unsafe fn main() {
     for (counter, _) in (0..200).enumerate() {
-        let mut buf = String::from("[");
-        buf.push_str(&counter.to_string());
-        buf.push(']');
-        write(buf.as_ptr(), buf.len());
+        let buf = format!("[{}]", counter);
+        apps::print!("{}", buf);
         for _ in 1..10000000 {
             core::arch::asm!("nop");
         }

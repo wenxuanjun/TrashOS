@@ -1,8 +1,6 @@
 use bit_field::BitField;
 
-pub struct Bitmap {
-    inner: &'static mut [usize],
-}
+pub struct Bitmap(&'static mut [usize]);
 
 #[allow(dead_code)]
 impl Bitmap {
@@ -10,23 +8,23 @@ impl Bitmap {
 
     pub fn new(inner: &'static mut [usize]) -> Self {
         inner.fill(0);
-        Self { inner }
+        Self(inner)
     }
 
     #[inline]
     pub fn len(&self) -> usize {
-        self.inner.len() * Self::BITS
+        self.0.len() * Self::BITS
     }
 
     #[inline]
     pub fn get(&self, index: usize) -> bool {
-        let byte = self.inner[index / Self::BITS];
+        let byte = self.0[index / Self::BITS];
         byte.get_bit(index % Self::BITS)
     }
 
     #[inline]
     pub fn set(&mut self, index: usize, value: bool) {
-        let byte = &mut self.inner[index / Self::BITS];
+        let byte = &mut self.0[index / Self::BITS];
         byte.set_bit(index % Self::BITS, value);
     }
 }
@@ -48,48 +46,45 @@ impl Bitmap {
 
         if start_byte <= end_byte {
             let fill_value = if value { usize::MAX } else { 0 };
-            self.inner[start_byte..end_byte].fill(fill_value);
+            self.0[start_byte..end_byte].fill(fill_value);
         }
 
         ((end_byte * Self::BITS).max(start)..end).for_each(|i| self.set(i, value));
     }
 
-    #[rustfmt::skip]
     pub fn find_range(&mut self, length: usize, value: bool) -> Option<usize> {
-        let mut count = 0;
-        let mut start_index = 0;
-
         let byte_match = if value { usize::MAX } else { 0 };
-        let byte_conflict = !byte_match;
+        let (mut count, mut start_index) = (0, 0);
 
-        for (i, &byte) in self.inner.iter().enumerate() {
-            if byte == byte_conflict {
-                count = 0;
-                continue;
-            }
-
-            if byte == byte_match && length < Self::BITS {
-                return Some(i * Self::BITS);
-            }
-
-            if byte == byte_match && length >= Self::BITS {
-                start_index = if count == 0 { i * Self::BITS } else { start_index };
-                count += Self::BITS;
-                if count >= length {
-                    return Some(start_index);
-                }
-                continue;
-            }
-
-            for j in 0..Self::BITS {
-                if byte.get_bit(j) == value {
-                    start_index = if count == 0 { i * Self::BITS + j } else { start_index };
-                    count += 1;
-                    if count == length {
+        for (index, &byte) in self.0.iter().enumerate() {
+            match byte {
+                b if b == !byte_match => count = 0,
+                b if b == byte_match => {
+                    if length < Self::BITS {
+                        return Some(index * Self::BITS);
+                    }
+                    if count == 0 {
+                        start_index = index * Self::BITS;
+                    }
+                    count += Self::BITS;
+                    if count >= length {
                         return Some(start_index);
                     }
-                } else {
-                    count = 0;
+                }
+                _ => {
+                    for bit_index in 0..Self::BITS {
+                        if byte.get_bit(bit_index) == value {
+                            if count == 0 {
+                                start_index = index * Self::BITS + bit_index;
+                            }
+                            count += 1;
+                            if count == length {
+                                return Some(start_index);
+                            }
+                        } else {
+                            count = 0;
+                        }
+                    }
                 }
             }
         }

@@ -1,9 +1,9 @@
 #![no_std]
 #![no_main]
 
-use kernel::device::ahci::AHCI;
+// use kernel::device::ahci::AHCI;
 use kernel::device::hpet::HPET;
-use kernel::device::nvme::NVME;
+// use kernel::device::nvme::NVME;
 use kernel::device::rtc::RtcDateTime;
 use kernel::device::terminal::terminal_manual_flush;
 use kernel::task::process::Process;

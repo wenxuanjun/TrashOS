@@ -26,6 +26,10 @@ nvme = "0.1.2"
 version = "0.3.36"
 default-features = false
 
+[dependencies.thiserror]
+version = "2.0.3"
+default-features = false
+
 [dependencies.os-terminal]
 version = "0.4.8"
 features = ["truetype"]

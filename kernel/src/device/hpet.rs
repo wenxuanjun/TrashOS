@@ -7,7 +7,9 @@ use crate::memory::convert_physical_to_virtual;
 
 pub static HPET: Lazy<Hpet> = Lazy::new(|| {
     let physical_address = PhysAddr::new(ACPI.hpet_info.base_address as u64);
-    Hpet::new(convert_physical_to_virtual(physical_address))
+    let hpet = Hpet::new(convert_physical_to_virtual(physical_address));
+    hpet.enable_counter();
+    hpet
 });
 
 pub struct Hpet {
@@ -22,14 +24,10 @@ impl Hpet {
             (value >> 32) as u32
         };
 
-        let hpet = Self {
+        Self {
             address,
             fms_per_tick,
-        };
-
-        hpet.enable_counter();
-
-        hpet
+        }
     }
 
     pub fn elapsed_ns(&self) -> u64 {
