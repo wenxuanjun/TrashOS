@@ -1,9 +1,9 @@
 use bitflags::bitflags;
-use spin::{Lazy, Mutex};
+use spin::Mutex;
 use thiserror::Error;
 use x86_64::instructions::port::Port;
 
-pub static MOUSE: Lazy<Mutex<Mouse>> = Lazy::new(|| Mutex::new(Mouse::default()));
+pub static MOUSE: Mutex<Mouse> = Mutex::new(Mouse::default());
 
 pub fn init() {
     let mut mouse = MOUSE.lock();
@@ -49,8 +49,8 @@ pub struct MouseState {
     move_y: i16,
 }
 
-impl Default for MouseState {
-    fn default() -> Self {
+impl MouseState {
+    pub const fn default() -> Self {
         MouseState {
             flags: MouseFlags::empty(),
             additional_flags: MouseAdditionalFlags::None,
@@ -78,13 +78,13 @@ pub enum MouseInitError {
 pub type MouseResult<T> = Result<T, MouseInitError>;
 
 #[derive(Debug)]
-struct MousePorts {
+pub struct MousePorts {
     command_port: Port<u8>,
     data_port: Port<u8>,
 }
 
-impl Default for MousePorts {
-    fn default() -> Self {
+impl MousePorts {
+    pub const fn default() -> Self {
         Self {
             command_port: Port::new(0x64),
             data_port: Port::new(0x60),
@@ -149,8 +149,8 @@ pub struct Mouse {
     complete_handler: Option<fn(MouseState)>,
 }
 
-impl Default for Mouse {
-    fn default() -> Self {
+impl Mouse {
+    pub const fn default() -> Self {
         Self {
             ports: MousePorts::default(),
             current_packet_index: 0,
@@ -159,9 +159,7 @@ impl Default for Mouse {
             complete_handler: None,
         }
     }
-}
 
-impl Mouse {
     pub fn init(&mut self) -> MouseResult<()> {
         unsafe {
             self.enable_streaming()?;

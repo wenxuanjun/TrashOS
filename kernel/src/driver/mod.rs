@@ -7,5 +7,6 @@ pub mod nvme;
 pub mod pci;
 pub mod rtc;
 pub mod serial;
+pub mod speaker;
 pub mod terminal;
 pub mod xhci;

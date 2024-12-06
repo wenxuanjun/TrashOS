@@ -5,18 +5,18 @@
 #![feature(stmt_expr_attributes)]
 
 pub mod memory;
-pub mod syscall;
 pub mod stdio;
+pub mod syscall;
 pub mod unwind;
 
 extern crate alloc;
 
-extern "C" {
+unsafe extern "C" {
     fn main();
 }
 
-#[no_mangle]
-unsafe fn _start() -> ! {
-    main();
+#[unsafe(no_mangle)]
+fn _start() -> ! {
+    unsafe { main() };
     syscall::exit();
 }

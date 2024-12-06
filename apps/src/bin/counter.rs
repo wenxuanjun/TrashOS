@@ -3,14 +3,12 @@
 
 extern crate alloc;
 use alloc::format;
+use apps::syscall::sleep;
 
-#[no_mangle]
-unsafe fn main() {
-    for (counter, _) in (0..200).enumerate() {
-        let buf = format!("[{}]", counter);
-        apps::print!("{}", buf);
-        for _ in 1..10000000 {
-            core::arch::asm!("nop");
-        }
+#[unsafe(no_mangle)]
+fn main() {
+    for (counter, _) in (0..100).enumerate() {
+        apps::print!("{}", format!("[{}]", counter));
+        sleep(50);
     }
 }

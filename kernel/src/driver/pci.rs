@@ -10,7 +10,7 @@ use spin::{Lazy, Mutex};
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::arch::acpi::ACPI;
-use crate::memory::convert_physical_to_virtual;
+use crate::mem::convert_physical_to_virtual;
 
 pub static PCI_DEVICES: Lazy<Mutex<Vec<PciDevice>>> = Lazy::new(|| {
     let pci_access = PciAccess::new(&ACPI.pci_regions);
@@ -191,7 +191,6 @@ impl<'a> PciResolver<'a> {
                     bars,
                 };
 
-                log::info!("PCI Device: {}", device);
                 self.devices.push(device);
             }
             HeaderType::PciPciBridge => {

@@ -5,7 +5,7 @@ use x86_64::instructions::interrupts;
 
 #[macro_export]
 macro_rules! serial_print {
-    ($($arg: tt)*) => ($crate::device::serial::_print(format_args!($($arg)*)));
+    ($($arg: tt)*) => ($crate::driver::serial::_print(format_args!($($arg)*)));
 }
 
 #[macro_export]

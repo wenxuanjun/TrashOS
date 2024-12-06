@@ -1,9 +1,9 @@
 use core::slice::from_raw_parts_mut;
 use limine::request::FramebufferRequest;
-use os_terminal::{DrawTarget, Rgb888};
+use os_terminal::{DrawTarget, Rgb};
 
 #[used]
-#[link_section = ".requests"]
+#[unsafe(link_section = ".requests")]
 static FRAMEBUFFER_REQUEST: FramebufferRequest = FramebufferRequest::new();
 
 #[derive(Debug, Clone, Copy)]
@@ -67,7 +67,7 @@ impl DrawTarget for Display {
     }
 
     #[inline(always)]
-    fn draw_pixel(&mut self, x: usize, y: usize, color: Rgb888) {
+    fn draw_pixel(&mut self, x: usize, y: usize, color: Rgb) {
         let byte_offset = (y * self.stride + x) * self.bytes_per_pixel;
         let write_range = byte_offset..(byte_offset + self.bytes_per_pixel);
 

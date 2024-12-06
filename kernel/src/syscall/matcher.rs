@@ -9,6 +9,8 @@ enum SyscallIndex {
     Read,
     Write,
     Mmap,
+    Yield,
+    Sleep,
     Exit,
 }
 
@@ -38,6 +40,8 @@ pub extern "C" fn syscall_matcher(
         SyscallIndex::Read => unimplemented!(),
         SyscallIndex::Write => write(arg1 as *const u8, arg2),
         SyscallIndex::Mmap => mmap(arg1, arg2),
+        SyscallIndex::Yield => r#yield(),
+        SyscallIndex::Sleep => sleep(arg1 as u64),
         SyscallIndex::Exit => exit(),
     }
 }

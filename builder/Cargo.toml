@@ -1,6 +1,6 @@
 [package]
 name = "builder"
-edition = "2021"
+edition = "2024"
 version = "0.1.0"
 
 [dependencies]
@@ -8,6 +8,7 @@ argh = "0.1.12"
 anyhow = "1.0.93"
 tempfile = "3.14.0"
 gpt = "4.0.0"
+ovmf-prebuilt = "0.2.1"
 
 [dependencies.fatfs]
 version = "0.3.6"

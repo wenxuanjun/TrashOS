@@ -1,5 +1,6 @@
 use argh::FromArgs;
 use builder::ImageBuilder;
+use ovmf_prebuilt::{Arch, FileType, Prebuilt, Source};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -14,9 +15,9 @@ struct Args {
     #[argh(description = "use KVM acceleration")]
     kvm: bool,
 
-    #[argh(switch, short = 'h')]
-    #[argh(description = "use HAXM acceleration")]
-    haxm: bool,
+    #[argh(switch, short = 'w')]
+    #[argh(description = "use Hyper-V acceleration")]
+    whpx: bool,
 
     #[argh(option, short = 'c')]
     #[argh(default = "4")]
@@ -35,10 +36,9 @@ fn main() {
     if args.boot {
         let mut cmd = Command::new("qemu-system-x86_64");
 
-        let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let assets_dir = manifest_dir.join("assets");
-
-        let ovmf_path = assets_dir.join("OVMF_CODE.fd");
+        let ovmf_path = Prebuilt::fetch(Source::LATEST, "target/ovmf")
+            .expect("failed to update prebuilt")
+            .get_file(Arch::X64, FileType::Code);
         let ovmf_config = format!("if=pflash,format=raw,file={}", ovmf_path.display());
 
         cmd.arg("-machine").arg("q35");
@@ -46,6 +46,18 @@ fn main() {
         cmd.arg("-m").arg("256m");
         cmd.arg("-smp").arg(format!("cores={}", args.cores));
         cmd.arg("-cpu").arg("qemu64,+x2apic");
+
+        if let Some(backend) = match std::env::consts::OS {
+            "linux" => Some("pa"),
+            "macos" => Some("coreaudio"),
+            "windows" => Some("dsound"),
+            _ => None,
+        } {
+            cmd.arg("-audiodev").arg(format!("{},id=sound", backend));
+            cmd.arg("-machine").arg("pcspk-audiodev=sound");
+            cmd.arg("-device").arg("intel-hda");
+            cmd.arg("-device").arg("hda-output,audiodev=sound");
+        }
 
         let drive_config = format!("if=none,format=raw,id=disk1,file={}", img_path.display());
         cmd.arg("-device").arg("ahci,id=ahci");
@@ -59,8 +71,8 @@ fn main() {
         if args.kvm {
             cmd.arg("--enable-kvm");
         }
-        if args.haxm {
-            cmd.arg("-accel").arg("hax");
+        if args.whpx {
+            cmd.arg("-accel").arg("whpx");
         }
         if args.serial {
             cmd.arg("-serial").arg("stdio");

@@ -1,23 +1,26 @@
 #![no_std]
 #![no_main]
+#![feature(naked_functions)]
+#![feature(alloc_error_handler)]
+#![feature(stmt_expr_attributes)]
 
 // use kernel::device::ahci::AHCI;
-use kernel::device::hpet::HPET;
+use kernel::driver::hpet::HPET;
 // use kernel::device::nvme::NVME;
-use kernel::device::rtc::RtcDateTime;
-use kernel::device::terminal::terminal_manual_flush;
+use kernel::driver::rtc::RtcDateTime;
+use kernel::driver::terminal::terminal_thread;
 use kernel::task::process::Process;
 use kernel::task::thread::Thread;
 use limine::BaseRevision;
 
 #[used]
-#[link_section = ".requests"]
+#[unsafe(link_section = ".requests")]
 static BASE_REVISION: BaseRevision = BaseRevision::new();
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 extern "C" fn kmain() -> ! {
     kernel::init();
-    log::info!("Boot time: {} ns", HPET.elapsed_ns());
+    log::info!("Boot time: {:?}", HPET.elapsed());
 
     // let mut ahci_manager = AHCI.lock();
     // log::info!("AHCI disk count: {}", ahci_manager.len());
@@ -51,10 +54,7 @@ extern "C" fn kmain() -> ! {
     // nvme_manager.read_block(0, 1, &mut read_buffer);
     // log::info!("NVMe first sector: {:?}", read_buffer);
 
-    Thread::new_kernel_thread(terminal_manual_flush);
-
-    let ansi_red_test_string = "\x1b[31mRed\x1b[0m";
-    log::info!("ANSI red test string: {}", ansi_red_test_string);
+    Thread::new_kernel_thread(terminal_thread);
 
     (40..=47).for_each(|index| kernel::print!("\x1b[{}m   \x1b[0m", index));
     kernel::println!();
@@ -64,8 +64,16 @@ extern "C" fn kmain() -> ! {
     let current_time = RtcDateTime::default().to_datetime().unwrap();
     log::info!("Current time: {}", current_time);
 
-    kernel::println!("Hello, world!");
-    kernel::println!("你好，世界！");
+    HPET.set_timer(HPET.estimate(core::time::Duration::from_secs(5)));
+
+    // TIMER.lock().add(ThreadId(0), 100);
+    // TIMER.lock().add(ThreadId(1), 200);
+    // TIMER.lock().add(ThreadId(2), 50);
+    // TIMER.lock().add(ThreadId(3), 150);
+    // kernel::println!("Timer pop: {:?}", TIMER.lock().pop());
+    // kernel::println!("Timer pop: {:?}", TIMER.lock().pop());
+    // kernel::println!("Timer pop: {:?}", TIMER.lock().pop());
+    // kernel::println!("Timer pop: {:?}", TIMER.lock().pop());
 
     let hello_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/hello");
     let counter_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/counter");

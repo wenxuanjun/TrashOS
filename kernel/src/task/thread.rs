@@ -10,7 +10,7 @@ use super::process::{WeakSharedProcess, KERNEL_PROCESS};
 use super::scheduler::SCHEDULER;
 use super::stack::{KernelStack, UserStack};
 use crate::arch::gdt::Selectors;
-use crate::memory::{ExtendedPageTable, KERNEL_PAGE_TABLE};
+use crate::mem::{ExtendedPageTable, KERNEL_PAGE_TABLE};
 
 pub(super) type SharedThread = Arc<RwLock<Box<Thread>>>;
 pub(super) type WeakSharedThread = Weak<RwLock<Box<Thread>>>;
@@ -30,6 +30,7 @@ pub struct Thread {
     pub kernel_stack: KernelStack,
     pub context: Context,
     pub process: WeakSharedProcess,
+    pub sleeping: bool,
 }
 
 impl Thread {
@@ -39,6 +40,7 @@ impl Thread {
             context: Context::default(),
             kernel_stack: KernelStack::default(),
             process,
+            sleeping: false,
         }
     }
 

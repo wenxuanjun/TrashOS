@@ -18,24 +18,22 @@ pub use manager::{MappingType, MemoryManager};
 pub use page_table::*;
 
 #[used]
-#[link_section = ".requests"]
+#[unsafe(link_section = ".requests")]
 static HHDM_REQUEST: HhdmRequest = HhdmRequest::new();
 
 #[used]
-#[link_section = ".requests"]
+#[unsafe(link_section = ".requests")]
 static MEMORY_MAP_REQUEST: MemoryMapRequest = MemoryMapRequest::new();
 
 pub static PHYSICAL_MEMORY_OFFSET: Lazy<u64> =
     Lazy::new(|| HHDM_REQUEST.get_response().unwrap().offset());
 
+pub static KERNEL_PAGE_TABLE: Lazy<Mutex<OffsetPageTable>> =
+    Lazy::new(|| Mutex::new(ref_current_page_table()));
+
 pub static FRAME_ALLOCATOR: Lazy<Mutex<BitmapFrameAllocator>> = Lazy::new(|| {
     let memory_map = MEMORY_MAP_REQUEST.get_response().unwrap();
     Mutex::new(BitmapFrameAllocator::init(memory_map))
-});
-
-pub static KERNEL_PAGE_TABLE: Lazy<Mutex<OffsetPageTable>> = Lazy::new(|| {
-    let page_table = unsafe { ref_current_page_table() };
-    Mutex::new(page_table)
 });
 
 #[inline]
@@ -48,9 +46,9 @@ pub fn convert_virtual_to_physical(virtual_address: VirtAddr) -> PhysAddr {
     PhysAddr::new(virtual_address.as_u64() - *PHYSICAL_MEMORY_OFFSET)
 }
 
-pub unsafe fn ref_current_page_table() -> OffsetPageTable<'static> {
+pub fn ref_current_page_table() -> OffsetPageTable<'static> {
     let physical_address = Cr3::read().0.start_address();
     let page_table = convert_physical_to_virtual(physical_address).as_mut_ptr::<PageTable>();
     let physical_memory_offset = VirtAddr::new(*PHYSICAL_MEMORY_OFFSET);
-    OffsetPageTable::new(&mut *page_table, physical_memory_offset)
+    unsafe { OffsetPageTable::new(&mut *page_table, physical_memory_offset) }
 }

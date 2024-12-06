@@ -1,10 +1,14 @@
 use alloc::sync::Arc;
+use core::arch::asm;
+use core::time::Duration;
 use core::{slice, str};
 use x86_64::VirtAddr;
 
-use crate::memory::ref_current_page_table;
-use crate::memory::{MappingType, MemoryManager};
+use crate::arch::interrupts::InterruptIndex;
+use crate::mem::ref_current_page_table;
+use crate::mem::{MappingType, MemoryManager};
 use crate::task::scheduler::SCHEDULER;
+use crate::task::timer::TIMER;
 
 pub fn write(buffer: *const u8, length: usize) {
     if length == 0 {
@@ -28,9 +32,27 @@ pub fn mmap(address: usize, length: usize) {
         VirtAddr::new(address as u64),
         length as u64,
         MappingType::UserData.flags(),
-        unsafe { &mut ref_current_page_table() },
+        &mut ref_current_page_table(),
     )
     .expect("Failed to allocate memory for mmap");
+}
+
+pub fn r#yield() {
+    unsafe {
+        asm!(
+            "int {interrupt_number}",
+            interrupt_number =
+            const InterruptIndex::Timer as u8
+        );
+    }
+}
+
+pub fn sleep(duration: u64) {
+    TIMER.lock().add(Duration::from_millis(duration));
+    if let Some(thread) = SCHEDULER.lock().current_thread().upgrade() {
+        thread.write().sleeping = true;
+    }
+    r#yield();
 }
 
 pub fn exit() {
@@ -41,15 +63,11 @@ pub fn exit() {
         if let Some(process) = current_thread.process.upgrade() {
             let mut scheduler = SCHEDULER.lock();
             for thread in process.read().threads.iter() {
-                scheduler.remove(Arc::downgrade(&thread));
+                scheduler.remove(Arc::downgrade(thread));
             }
             process.read().exit_process();
         }
     }
 
-    unsafe {
-        loop {
-            core::arch::asm!("sti", "2:", "hlt", "jmp 2b");
-        }
-    }
+    r#yield();
 }

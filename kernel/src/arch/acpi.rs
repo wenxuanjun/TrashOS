@@ -8,10 +8,10 @@ use limine::request::RsdpRequest;
 use spin::Lazy;
 use x86_64::{PhysAddr, VirtAddr};
 
-use crate::memory::{convert_physical_to_virtual, convert_virtual_to_physical};
+use crate::mem::{convert_physical_to_virtual, convert_virtual_to_physical};
 
 #[used]
-#[link_section = ".requests"]
+#[unsafe(link_section = ".requests")]
 static RSDP_REQUEST: RsdpRequest = RsdpRequest::new();
 
 pub static ACPI: Lazy<Acpi> = Lazy::new(|| {

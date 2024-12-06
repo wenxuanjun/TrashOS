@@ -1,4 +1,5 @@
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use core::time::Duration;
 
 use spin::{Lazy, Mutex};
 use x2apic::ioapic::{IoApic, IrqMode, RedirectionTableEntry};
@@ -7,10 +8,10 @@ use x86_64::{instructions::port::Port, PhysAddr};
 
 use super::acpi::ACPI;
 use super::interrupts::InterruptIndex;
-use crate::device::hpet::HPET;
-use crate::memory::convert_physical_to_virtual;
+use crate::driver::hpet::HPET;
+use crate::mem::convert_physical_to_virtual;
 
-const TIMER_FREQUENCY_HZ: u32 = 250;
+const TIMER_FREQUENCY_HZ: u32 = 200;
 const TIMER_CALIBRATION_ITERATION: u32 = 100;
 const IOAPIC_INTERRUPT_INDEX_OFFSET: u8 = 32;
 
@@ -50,6 +51,7 @@ pub static IOAPIC: Lazy<Mutex<IoApic>> = Lazy::new(|| unsafe {
 pub enum IrqVector {
     Keyboard = 1,
     Mouse = 12,
+    HpetTimer,
 }
 
 pub fn init() {
@@ -59,6 +61,7 @@ pub fn init() {
 
         ioapic_add_entry(IrqVector::Keyboard, InterruptIndex::Keyboard);
         ioapic_add_entry(IrqVector::Mouse, InterruptIndex::Mouse);
+        ioapic_add_entry(IrqVector::HpetTimer, InterruptIndex::HpetTimer);
     };
 
     APIC_INIT.store(true, Ordering::SeqCst);
@@ -93,14 +96,14 @@ unsafe fn calibrate_timer() {
     let mut lapic_total_ticks = 0;
 
     for _ in 0..TIMER_CALIBRATION_ITERATION {
-        let last_time = HPET.elapsed_ns();
-        lapic.set_timer_initial(!0);
-        while HPET.elapsed_ns() - last_time < 1_000_000 {}
-        lapic_total_ticks += !0 - lapic.timer_current();
+        let last_time = HPET.elapsed();
+        lapic.set_timer_initial(u32::MAX);
+        while HPET.elapsed() - last_time < Duration::from_millis(1) {}
+        lapic_total_ticks += u32::MAX - lapic.timer_current();
     }
 
-    let average_clock_per_ms = lapic_total_ticks / TIMER_CALIBRATION_ITERATION;
-    let calibrated_timer_initial = average_clock_per_ms * 1000 / TIMER_FREQUENCY_HZ;
+    let average_ticks_per_ms = lapic_total_ticks / TIMER_CALIBRATION_ITERATION;
+    let calibrated_timer_initial = average_ticks_per_ms * 1000 / TIMER_FREQUENCY_HZ;
     log::debug!("Calibrated timer initial: {}", calibrated_timer_initial);
 
     lapic.set_timer_mode(TimerMode::Periodic);

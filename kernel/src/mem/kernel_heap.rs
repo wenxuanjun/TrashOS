@@ -5,7 +5,7 @@ use x86_64::VirtAddr;
 use super::{MappingType, MemoryManager, KERNEL_PAGE_TABLE};
 
 pub const HEAP_START: usize = 0x114514000000;
-pub const HEAP_SIZE: usize = 8 * 1024 * 1024;
+pub const HEAP_SIZE: usize = 16 * 1024 * 1024;
 
 #[global_allocator]
 static ALLOCATOR: SpinLockedAllocator = SpinLockedAllocator::empty();

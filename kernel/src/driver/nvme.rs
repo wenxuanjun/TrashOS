@@ -7,8 +7,8 @@ use x86_64::structures::paging::PhysFrame;
 use x86_64::PhysAddr;
 
 use super::pci::PCI_DEVICES;
-use crate::memory::convert_physical_to_virtual;
-use crate::memory::{DmaManager, MappingType, MemoryManager, KERNEL_PAGE_TABLE};
+use crate::mem::convert_physical_to_virtual;
+use crate::mem::{DmaManager, MappingType, MemoryManager, KERNEL_PAGE_TABLE};
 
 pub static NVME: Lazy<Mutex<NvmeManager>> = Lazy::new(|| Mutex::new(NvmeManager::default()));
 

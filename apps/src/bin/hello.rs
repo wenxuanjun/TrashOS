@@ -3,14 +3,16 @@
 
 extern crate alloc;
 use alloc::string::String;
+use apps::{println, syscall::sleep};
 
-#[no_mangle]
-unsafe fn main() {
+#[unsafe(no_mangle)]
+fn main() {
+    println!("Sleeping for 1 second...");
+    sleep(1000);
+    println!("Woke up!");
     let hello = String::from("Hello!");
-    for _ in 0..100 {
+    for _ in 0..50 {
         apps::print!("{}", hello);
-        for _ in 1..10000000 {
-            core::arch::asm!("nop");
-        }
+        sleep(100);
     }
 }

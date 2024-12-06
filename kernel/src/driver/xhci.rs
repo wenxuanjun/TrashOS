@@ -3,8 +3,8 @@ use x86_64::structures::paging::PhysFrame;
 use x86_64::PhysAddr;
 use xhci::accessor::Mapper;
 
-use crate::memory::convert_physical_to_virtual;
-use crate::memory::{MappingType, MemoryManager, KERNEL_PAGE_TABLE};
+use crate::mem::convert_physical_to_virtual;
+use crate::mem::{MappingType, MemoryManager, KERNEL_PAGE_TABLE};
 
 #[derive(Clone)]
 pub struct XHCIMapper;

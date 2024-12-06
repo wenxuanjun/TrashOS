@@ -1,5 +1,5 @@
 use alloc::collections::{BTreeMap, VecDeque};
-use alloc::sync::Arc;
+use alloc::sync::Weak;
 use core::sync::atomic::{AtomicBool, Ordering};
 use spin::{Lazy, Mutex};
 use x86_64::VirtAddr;
@@ -46,10 +46,8 @@ impl Scheduler {
 
     #[inline]
     pub fn remove(&mut self, thread: WeakSharedThread) {
-        self.ready_threads.retain(|other| {
-            let other = other.upgrade().unwrap();
-            !Arc::ptr_eq(&other, &thread.upgrade().unwrap())
-        });
+        self.ready_threads
+            .retain(|other| !Weak::ptr_eq(other, &thread));
     }
 
     #[inline]
@@ -57,19 +55,28 @@ impl Scheduler {
         let lapic_id = unsafe { LAPIC.lock().id() };
         self.current_threads[&lapic_id].clone()
     }
+}
 
+impl Scheduler {
     pub fn schedule(&mut self, context: VirtAddr) -> VirtAddr {
         let lapic_id = unsafe { LAPIC.lock().id() };
 
-        let last_thread = self.current_threads[&lapic_id].upgrade().map(|thread| {
-            thread.write().context = Context::from_address(context);
-            self.current_threads[&lapic_id].clone()
+        let last_thread = self.current_threads.get(&lapic_id).and_then(|weak| {
+            weak.upgrade().map(|thread| {
+                thread.write().context = Context::from_address(context);
+                weak.clone()
+            })
         });
 
         if let Some(next_thread) = self.ready_threads.pop_front() {
             self.current_threads.insert(lapic_id, next_thread);
             if let Some(last_thread) = last_thread {
-                self.ready_threads.push_back(last_thread);
+                let last_thread_tmp = last_thread.upgrade().unwrap();
+                let mut last_thread_tmp = last_thread_tmp.write();
+                if !last_thread_tmp.sleeping {
+                    self.ready_threads.push_back(last_thread);
+                }
+                last_thread_tmp.sleeping = false;
             }
         }
 

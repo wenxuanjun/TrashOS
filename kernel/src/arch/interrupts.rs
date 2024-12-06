@@ -8,7 +8,9 @@ use x86_64::VirtAddr;
 
 use super::apic::LAPIC;
 use super::gdt::DOUBLE_FAULT_IST_INDEX;
+use crate::driver::terminal::SCANCODE_QUEUE;
 use crate::task::scheduler::SCHEDULER;
+use crate::task::timer::TIMER;
 
 const INTERRUPT_INDEX_OFFSET: u8 = 32;
 
@@ -20,6 +22,7 @@ pub enum InterruptIndex {
     ApicSpurious,
     Keyboard,
     Mouse,
+    HpetTimer,
 }
 
 pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
@@ -37,6 +40,7 @@ pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     idt[InterruptIndex::ApicSpurious as u8].set_handler_fn(spurious_interrupt);
     idt[InterruptIndex::Keyboard as u8].set_handler_fn(keyboard_interrupt);
     idt[InterruptIndex::Mouse as u8].set_handler_fn(mouse_interrupt);
+    idt[InterruptIndex::HpetTimer as u8].set_handler_fn(hpet_timer_interrupt);
 
     unsafe {
         idt.double_fault
@@ -48,7 +52,7 @@ pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
 });
 
 #[naked]
-extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
+pub extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
     fn timer_handler(context: VirtAddr) -> VirtAddr {
         super::apic::end_of_interrupt();
         SCHEDULER.lock().schedule(context)
@@ -79,6 +83,11 @@ extern "x86-interrupt" fn spurious_interrupt(_frame: InterruptStackFrame) {
     super::apic::end_of_interrupt();
 }
 
+extern "x86-interrupt" fn hpet_timer_interrupt(_frame: InterruptStackFrame) {
+    super::apic::end_of_interrupt();
+    TIMER.lock().wakeup();
+}
+
 extern "x86-interrupt" fn segment_not_present(frame: InterruptStackFrame, error_code: u64) {
     log::error!("Exception: Segment Not Present\n{:#?}", frame);
     log::error!("Error Code: {:#x}", error_code);
@@ -107,15 +116,17 @@ extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, error_code: u
 }
 
 extern "x86-interrupt" fn keyboard_interrupt(_frame: InterruptStackFrame) {
-    let scancode: u8 = unsafe { PortReadOnly::new(0x60).read() };
-    crate::device::terminal::terminal_handle_keyboard(scancode);
     super::apic::end_of_interrupt();
+    let scancode = unsafe { PortReadOnly::new(0x60).read() };
+    if SCANCODE_QUEUE.push(scancode).is_err() {
+        log::warn!("Scancode queue full, dropping: {:#x}", scancode);
+    }
 }
 
 extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {
-    let packet = unsafe { PortReadOnly::new(0x60).read() };
-    crate::device::mouse::MOUSE.lock().process_packet(packet);
     super::apic::end_of_interrupt();
+    let packet = unsafe { PortReadOnly::new(0x60).read() };
+    crate::driver::mouse::MOUSE.lock().process_packet(packet);
 }
 
 extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error_code: PageFaultErrorCode) {

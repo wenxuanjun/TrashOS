@@ -1,19 +1,16 @@
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use limine::request::SmpRequest;
-use limine::response::SmpResponse;
 use spin::{Lazy, RwLock};
 
 use super::ap_entry;
 use super::gdt::CpuInfo;
 
 #[used]
-#[link_section = ".requests"]
+#[unsafe(link_section = ".requests")]
 static SMP_REQUEST: SmpRequest = SmpRequest::new();
 
 pub static CPUS: Lazy<RwLock<Cpus>> = Lazy::new(|| RwLock::new(Cpus::default()));
-pub static BSP_LAPIC_ID: Lazy<u32> = Lazy::new(|| SMP_RESPONSE.bsp_lapic_id());
-static SMP_RESPONSE: Lazy<&SmpResponse> = Lazy::new(|| SMP_REQUEST.get_response().unwrap());
 
 pub struct Cpus(BTreeMap<u32, &'static mut CpuInfo>);
 
@@ -34,27 +31,33 @@ impl Cpus {
 impl Default for Cpus {
     fn default() -> Self {
         let mut cpus = BTreeMap::new();
-        cpus.insert(*BSP_LAPIC_ID, Box::leak(Box::new(CpuInfo::default())));
+        let response = SMP_REQUEST.get_response().unwrap();
+        let bsp_lapic_id = response.bsp_lapic_id();
+        cpus.insert(bsp_lapic_id, Box::leak(Box::new(CpuInfo::default())));
         Cpus(cpus)
     }
 }
 
 impl Cpus {
     pub fn init_bsp(&mut self) {
-        let bsp_info = self.get_mut(*BSP_LAPIC_ID);
+        let response = SMP_REQUEST.get_response().unwrap();
+        let bsp_info = self.get_mut(response.bsp_lapic_id());
+
         bsp_info.init();
         bsp_info.load();
     }
 
     pub fn init_ap(&mut self) {
-        for cpu in SMP_RESPONSE.cpus() {
-            if cpu.id == *BSP_LAPIC_ID {
-                continue;
+        let response = SMP_REQUEST.get_response().unwrap();
+        let bsp_lapic_id = response.bsp_lapic_id();
+
+        for cpu in response.cpus() {
+            if cpu.id != bsp_lapic_id {
+                let info = Box::leak(Box::new(CpuInfo::default()));
+                info.init();
+                self.0.insert(cpu.lapic_id, info);
+                cpu.goto_address.write(ap_entry);
             }
-            let info = Box::leak(Box::new(CpuInfo::default()));
-            info.init();
-            self.0.insert(cpu.lapic_id, info);
-            cpu.goto_address.write(ap_entry);
         }
     }
 }

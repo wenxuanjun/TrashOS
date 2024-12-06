@@ -12,8 +12,8 @@ use x86_64::structures::paging::OffsetPageTable;
 use x86_64::VirtAddr;
 
 use super::thread::{SharedThread, Thread};
-use crate::memory::{ExtendedPageTable, MappingType, MemoryManager};
-use crate::memory::{FRAME_ALLOCATOR, KERNEL_PAGE_TABLE};
+use crate::mem::{ExtendedPageTable, MappingType, MemoryManager};
+use crate::mem::{FRAME_ALLOCATOR, KERNEL_PAGE_TABLE};
 
 pub(super) type SharedProcess = Arc<RwLock<Box<Process>>>;
 pub(super) type WeakSharedProcess = Weak<RwLock<Box<Process>>>;
