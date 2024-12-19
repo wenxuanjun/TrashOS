@@ -51,7 +51,7 @@ impl Scheduler {
     }
 
     #[inline]
-    pub fn current_thread(&self) -> WeakSharedThread {
+    pub fn current(&self) -> WeakSharedThread {
         let lapic_id = unsafe { LAPIC.lock().id() };
         self.current_threads[&lapic_id].clone()
     }
@@ -61,23 +61,20 @@ impl Scheduler {
     pub fn schedule(&mut self, context: VirtAddr) -> VirtAddr {
         let lapic_id = unsafe { LAPIC.lock().id() };
 
-        let last_thread = self.current_threads.get(&lapic_id).and_then(|weak| {
-            weak.upgrade().map(|thread| {
-                thread.write().context = Context::from_address(context);
-                weak.clone()
-            })
-        });
+        if let Some(weak) = self.current_threads.get(&lapic_id) {
+            if let Some(thread) = weak.upgrade() {
+                let mut thread = thread.write();
+                thread.context = Context::from_address(context);
+
+                if !thread.sleeping {
+                    self.ready_threads.push_back(weak.clone());
+                }
+                thread.sleeping = false;
+            }
+        }
 
         if let Some(next_thread) = self.ready_threads.pop_front() {
             self.current_threads.insert(lapic_id, next_thread);
-            if let Some(last_thread) = last_thread {
-                let last_thread_tmp = last_thread.upgrade().unwrap();
-                let mut last_thread_tmp = last_thread_tmp.write();
-                if !last_thread_tmp.sleeping {
-                    self.ready_threads.push_back(last_thread);
-                }
-                last_thread_tmp.sleeping = false;
-            }
         }
 
         let next_thread = self.current_threads[&lapic_id].upgrade().unwrap();

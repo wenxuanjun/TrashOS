@@ -1,10 +1,11 @@
+use x86_64::VirtAddr;
 use x86_64::registers::model_specific::{Efer, EferFlags};
 use x86_64::registers::model_specific::{LStar, SFMask, Star};
 use x86_64::registers::rflags::RFlags;
-use x86_64::VirtAddr;
 
 use crate::arch::gdt::Selectors;
 use matcher::syscall_matcher;
+pub use operations::*;
 
 mod matcher;
 mod operations;
@@ -35,23 +36,11 @@ extern "C" fn syscall_handler() {
         core::arch::naked_asm!(
             "push rcx",
             "push r11",
-            "push rbp",
-            "push rbx",
-            "push r12",
-            "push r13",
-            "push r14",
-            "push r15",
 
             // Move the 4th argument in r10 to rcx to fit the C ABI
             "mov rcx, r10",
             "call {syscall_matcher}",
 
-            "pop r15",
-            "pop r14",
-            "pop r13",
-            "pop r12",
-            "pop rbx",
-            "pop rbp",
             "pop r11",
             "pop rcx",
             "sysretq",

@@ -1,4 +1,3 @@
-use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
 use limine::request::SmpRequest;
 use spin::{Lazy, RwLock};
@@ -10,9 +9,12 @@ use super::gdt::CpuInfo;
 #[unsafe(link_section = ".requests")]
 static SMP_REQUEST: SmpRequest = SmpRequest::new();
 
+pub static BSP_LAPIC_ID: Lazy<u32> =
+    Lazy::new(|| SMP_REQUEST.get_response().unwrap().bsp_lapic_id());
+
 pub static CPUS: Lazy<RwLock<Cpus>> = Lazy::new(|| RwLock::new(Cpus::default()));
 
-pub struct Cpus(BTreeMap<u32, &'static mut CpuInfo>);
+pub struct Cpus(BTreeMap<u32, CpuInfo>);
 
 impl Cpus {
     pub fn get(&self, lapic_id: u32) -> &CpuInfo {
@@ -31,31 +33,23 @@ impl Cpus {
 impl Default for Cpus {
     fn default() -> Self {
         let mut cpus = BTreeMap::new();
-        let response = SMP_REQUEST.get_response().unwrap();
-        let bsp_lapic_id = response.bsp_lapic_id();
-        cpus.insert(bsp_lapic_id, Box::leak(Box::new(CpuInfo::default())));
+        cpus.insert(*BSP_LAPIC_ID, CpuInfo::default());
         Cpus(cpus)
     }
 }
 
 impl Cpus {
-    pub fn init_bsp(&mut self) {
-        let response = SMP_REQUEST.get_response().unwrap();
-        let bsp_info = self.get_mut(response.bsp_lapic_id());
-
-        bsp_info.init();
-        bsp_info.load();
+    pub fn load(&mut self, lapic_id: u32) {
+        let cpu_info = self.get_mut(lapic_id);
+        cpu_info.init();
     }
 
     pub fn init_ap(&mut self) {
         let response = SMP_REQUEST.get_response().unwrap();
-        let bsp_lapic_id = response.bsp_lapic_id();
 
         for cpu in response.cpus() {
-            if cpu.id != bsp_lapic_id {
-                let info = Box::leak(Box::new(CpuInfo::default()));
-                info.init();
-                self.0.insert(cpu.lapic_id, info);
+            if cpu.id != *BSP_LAPIC_ID {
+                self.0.insert(cpu.lapic_id, CpuInfo::default());
                 cpu.goto_address.write(ap_entry);
             }
         }

@@ -1,5 +1,3 @@
-use alloc::boxed::Box;
-use alloc::collections::VecDeque;
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
@@ -7,19 +5,19 @@ use core::fmt::Debug;
 use core::sync::atomic::{AtomicU64, Ordering};
 use object::{File, Object, ObjectSegment};
 use spin::{Lazy, RwLock};
-use x86_64::instructions::interrupts;
-use x86_64::structures::paging::OffsetPageTable;
 use x86_64::VirtAddr;
+use x86_64::structures::paging::OffsetPageTable;
 
 use super::thread::{SharedThread, Thread};
-use crate::mem::{ExtendedPageTable, MappingType, MemoryManager};
+use crate::mem::{ExtendedPageTable, ref_current_page_table};
 use crate::mem::{FRAME_ALLOCATOR, KERNEL_PAGE_TABLE};
+use crate::mem::{MappingType, MemoryManager};
 
-pub(super) type SharedProcess = Arc<RwLock<Box<Process>>>;
-pub(super) type WeakSharedProcess = Weak<RwLock<Box<Process>>>;
+pub(super) type SharedProcess = Arc<RwLock<Process>>;
+pub(super) type WeakSharedProcess = Weak<RwLock<Process>>;
 
-static PROCESSES: RwLock<VecDeque<SharedProcess>> = RwLock::new(VecDeque::new());
-pub static KERNEL_PROCESS: Lazy<SharedProcess> = Lazy::new(Process::new_kernel_process);
+static PROCESSES: RwLock<Vec<SharedProcess>> = RwLock::new(Vec::new());
+pub static KERNEL_PROCESS: Lazy<SharedProcess> = Lazy::new(Process::init_kernel_process);
 
 const KERNEL_PROCESS_NAME: &str = "kernel";
 
@@ -42,34 +40,16 @@ pub struct Process {
 }
 
 impl Process {
-    pub fn new(name: &str) -> Self {
-        let process = Process {
+    pub fn new(name: &str, page_table: OffsetPageTable<'static>) -> Self {
+        Self {
             id: ProcessId::new(),
             name: String::from(name),
-            page_table: unsafe { KERNEL_PAGE_TABLE.lock().deep_copy() },
-            threads: Default::default(),
-        };
-
-        process
+            page_table,
+            threads: Vec::new(),
+        }
     }
 
-    pub fn new_kernel_process() -> SharedProcess {
-        let process = Arc::new(RwLock::new(Box::new(Self::new(KERNEL_PROCESS_NAME))));
-        PROCESSES.write().push_back(process.clone());
-        process
-    }
-
-    pub fn new_user_process(name: &str, elf_data: &'static [u8]) {
-        let binary = ProcessBinary::new(elf_data);
-        interrupts::without_interrupts(|| {
-            let process = Arc::new(RwLock::new(Box::new(Self::new(name))));
-            binary.map_segments(&mut process.write().page_table);
-            Thread::new_user_thread(Arc::downgrade(&process), binary.entry());
-            PROCESSES.write().push_back(process.clone());
-        });
-    }
-
-    pub fn exit_process(&self) {
+    pub fn exit(&self) {
         let mut processes = PROCESSES.write();
         if let Some(index) = processes
             .iter()
@@ -78,24 +58,38 @@ impl Process {
             processes.remove(index);
         }
     }
+
+    pub fn init_kernel_process() -> SharedProcess {
+        let process = Self::new(KERNEL_PROCESS_NAME, ref_current_page_table());
+        let process = Arc::new(RwLock::new(process));
+        PROCESSES.write().push(process.clone());
+        process
+    }
+
+    pub fn new_user_process(name: &str, elf_data: &'static [u8]) {
+        let binary = ProcessBinary::parse(elf_data);
+        let mut page_table = unsafe { KERNEL_PAGE_TABLE.lock().deep_copy() };
+        ProcessBinary::map_segments(&binary, &mut page_table);
+
+        let process = Arc::new(RwLock::new(Self::new(name, page_table)));
+        Thread::new_user_thread(Arc::downgrade(&process), binary.entry() as usize);
+        PROCESSES.write().push(process.clone());
+    }
 }
 
-struct ProcessBinary(File<'static>);
+struct ProcessBinary;
 
 impl ProcessBinary {
-    pub fn new(bin: &'static [u8]) -> Self {
-        Self(File::parse(bin).expect("Invalid ELF data"))
+    fn parse(bin: &'static [u8]) -> File<'static> {
+        File::parse(bin).expect("Failed to parse ELF binary!")
     }
 
-    #[inline]
-    pub fn entry(&self) -> usize {
-        self.0.entry() as usize
-    }
+    fn map_segments(elf_file: &File, page_table: &mut OffsetPageTable<'static>) {
+        for segment in elf_file.segments() {
+            let address = VirtAddr::new(segment.address());
 
-    pub fn map_segments(&self, page_table: &mut OffsetPageTable<'static>) {
-        for segment in self.0.segments() {
             MemoryManager::alloc_range(
-                VirtAddr::new(segment.address()),
+                address,
                 segment.size(),
                 MappingType::UserCode.flags(),
                 page_table,
@@ -103,7 +97,7 @@ impl ProcessBinary {
             .expect("Failed to allocate memory for ELF segment");
 
             if let Ok(data) = segment.data() {
-                page_table.write_to_mapped_address(data, VirtAddr::new(segment.address()));
+                page_table.write_to_mapped_address(data, address);
             }
         }
     }
@@ -114,10 +108,7 @@ impl Drop for Process {
         unsafe {
             self.page_table.free_user_page_table();
             log::info!("Process {} dropped", self.id.0);
-            log::info!(
-                "Available frames: {:?}",
-                FRAME_ALLOCATOR.lock().available_frames()
-            );
+            log::info!("Memory usage: {}", FRAME_ALLOCATOR.lock());
         }
     }
 }

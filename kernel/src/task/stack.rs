@@ -1,11 +1,11 @@
 use alloc::boxed::Box;
-use x86_64::structures::paging::OffsetPageTable;
 use x86_64::VirtAddr;
+use x86_64::structures::paging::OffsetPageTable;
 
 use crate::mem::{MappingType, MemoryManager};
 
 const KERNEL_STACK_SIZE: usize = 64 * 1024;
-const USER_STACK_END: usize = 0x7ffffefff000;
+const USER_STACK_END: usize = 0x7fffffff0000;
 const USER_STACK_SIZE: usize = 256 * 1024;
 
 pub struct KernelStack(Box<[u8]>);

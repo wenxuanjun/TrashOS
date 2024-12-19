@@ -1,19 +1,17 @@
-use alloc::boxed::Box;
 use alloc::sync::{Arc, Weak};
 use core::fmt::Debug;
 use core::sync::atomic::{AtomicU64, Ordering};
 use spin::RwLock;
-use x86_64::instructions::interrupts;
 
 use super::context::Context;
-use super::process::{WeakSharedProcess, KERNEL_PROCESS};
+use super::process::{KERNEL_PROCESS, WeakSharedProcess};
 use super::scheduler::SCHEDULER;
 use super::stack::{KernelStack, UserStack};
 use crate::arch::gdt::Selectors;
 use crate::mem::{ExtendedPageTable, KERNEL_PAGE_TABLE};
 
-pub(super) type SharedThread = Arc<RwLock<Box<Thread>>>;
-pub(super) type WeakSharedThread = Weak<RwLock<Box<Thread>>>;
+pub(super) type SharedThread = Arc<RwLock<Thread>>;
+pub(super) type WeakSharedThread = Weak<RwLock<Thread>>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ThreadId(pub u64);
@@ -46,7 +44,7 @@ impl Thread {
 
     pub fn get_init_thread() -> WeakSharedThread {
         let thread = Self::new(Arc::downgrade(&KERNEL_PROCESS));
-        let thread = Arc::new(RwLock::new(Box::new(thread)));
+        let thread = Arc::new(RwLock::new(thread));
         KERNEL_PROCESS.write().threads.push(thread.clone());
         Arc::downgrade(&thread)
     }
@@ -61,12 +59,10 @@ impl Thread {
             Selectors::get_kernel_segments(),
         );
 
-        let thread = Arc::new(RwLock::new(Box::new(thread)));
+        let thread = Arc::new(RwLock::new(thread));
         KERNEL_PROCESS.write().threads.push(thread.clone());
 
-        interrupts::without_interrupts(|| {
-            SCHEDULER.lock().add(Arc::downgrade(&thread));
-        });
+        SCHEDULER.lock().add(Arc::downgrade(&thread));
     }
 
     pub fn new_user_thread(process: WeakSharedProcess, entry_point: usize) {
@@ -82,7 +78,7 @@ impl Thread {
             Selectors::get_user_segments(),
         );
 
-        let thread = Arc::new(RwLock::new(Box::new(thread)));
+        let thread = Arc::new(RwLock::new(thread));
         process.threads.push(thread.clone());
 
         SCHEDULER.lock().add(Arc::downgrade(&thread));

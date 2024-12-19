@@ -5,13 +5,13 @@ use x86_64::instructions::interrupts;
 
 #[macro_export]
 macro_rules! serial_print {
-    ($($arg: tt)*) => ($crate::driver::serial::_print(format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::driver::serial::_print(format_args!($($arg)*)));
 }
 
 #[macro_export]
 macro_rules! serial_println {
     () => ($crate::serial_print!("\n"));
-    ($($arg: tt)*) => ($crate::serial_print!("{}\n", format_args!($($arg)*)));
+    ($($arg:tt)*) => ($crate::serial_print!("{}\n", format_args!($($arg)*)));
 }
 
 #[doc(hidden)]

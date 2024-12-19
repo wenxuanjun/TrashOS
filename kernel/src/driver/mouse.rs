@@ -50,7 +50,7 @@ pub struct MouseState {
 }
 
 impl MouseState {
-    pub const fn default() -> Self {
+    const fn default() -> Self {
         MouseState {
             flags: MouseFlags::empty(),
             additional_flags: MouseAdditionalFlags::None,
@@ -84,7 +84,7 @@ pub struct MousePorts {
 }
 
 impl MousePorts {
-    pub const fn default() -> Self {
+    const fn default() -> Self {
         Self {
             command_port: Port::new(0x64),
             data_port: Port::new(0x60),
@@ -150,7 +150,7 @@ pub struct Mouse {
 }
 
 impl Mouse {
-    pub const fn default() -> Self {
+    const fn default() -> Self {
         Self {
             ports: MousePorts::default(),
             current_packet_index: 0,

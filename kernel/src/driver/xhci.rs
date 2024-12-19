@@ -1,10 +1,10 @@
 use core::num::NonZeroUsize;
-use x86_64::structures::paging::PhysFrame;
 use x86_64::PhysAddr;
+use x86_64::structures::paging::PhysFrame;
 use xhci::accessor::Mapper;
 
 use crate::mem::convert_physical_to_virtual;
-use crate::mem::{MappingType, MemoryManager, KERNEL_PAGE_TABLE};
+use crate::mem::{KERNEL_PAGE_TABLE, MappingType, MemoryManager};
 
 #[derive(Clone)]
 pub struct XHCIMapper;

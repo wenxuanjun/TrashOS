@@ -49,7 +49,9 @@ impl Context {
         self.cs = code_selector.0 as usize;
         self.ss = data_selector.0 as usize;
     }
+}
 
+impl Context {
     #[inline]
     pub fn address(&self) -> VirtAddr {
         VirtAddr::new(self as *const Context as u64)

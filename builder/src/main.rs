@@ -1,6 +1,7 @@
 use argh::FromArgs;
 use builder::ImageBuilder;
 use ovmf_prebuilt::{Arch, FileType, Prebuilt, Source};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -89,18 +90,15 @@ fn build_img() -> PathBuf {
 
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let assets_dir = manifest_dir.join("assets");
+
+    let files = BTreeMap::from([
+        ("kernel", kernel_path.to_path_buf()),
+        ("efi/boot/bootx64.efi", assets_dir.join("BOOTX64.EFI")),
+        ("limine.conf", assets_dir.join("limine.conf")),
+    ]);
+
     let img_path = manifest_dir.parent().unwrap().join("TrashOS.img");
-
-    let limine_elf = assets_dir.join("BOOTX64.EFI");
-    let limine_config = assets_dir.join("limine.conf");
-
-    ImageBuilder::build(
-        kernel_path.to_path_buf(),
-        limine_elf,
-        limine_config,
-        &img_path,
-    )
-    .expect("Failed to build UEFI disk image");
+    ImageBuilder::build(files, &img_path).expect("Failed to build UEFI disk image");
     println!("Created bootable UEFI disk image at {:#?}", &img_path);
 
     img_path

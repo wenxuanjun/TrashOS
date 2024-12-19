@@ -3,12 +3,12 @@ use nvme::memory::Allocator;
 use nvme::nvme::NvmeDevice;
 use pci_types::device_type::DeviceType;
 use spin::{Lazy, Mutex};
-use x86_64::structures::paging::PhysFrame;
 use x86_64::PhysAddr;
+use x86_64::structures::paging::PhysFrame;
 
 use super::pci::PCI_DEVICES;
 use crate::mem::convert_physical_to_virtual;
-use crate::mem::{DmaManager, MappingType, MemoryManager, KERNEL_PAGE_TABLE};
+use crate::mem::{DmaManager, KERNEL_PAGE_TABLE, MappingType, MemoryManager};
 
 pub static NVME: Lazy<Mutex<NvmeManager>> = Lazy::new(|| Mutex::new(NvmeManager::default()));
 

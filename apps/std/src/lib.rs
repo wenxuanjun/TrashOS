@@ -2,17 +2,22 @@
 #![no_main]
 #![feature(naked_functions)]
 #![feature(alloc_error_handler)]
-#![feature(stmt_expr_attributes)]
+#![feature(macro_metavar_expr)]
 
-pub mod memory;
-pub mod stdio;
-pub mod syscall;
-pub mod unwind;
+mod memory;
+mod stdio;
+mod syscall;
+mod unwind;
 
+pub use stdio::_print;
+pub use syscall::*;
+
+#[allow(hidden_glob_reexports)]
 extern crate alloc;
+pub use alloc::*;
 
 unsafe extern "C" {
-    fn main();
+    unsafe fn main();
 }
 
 #[unsafe(no_mangle)]

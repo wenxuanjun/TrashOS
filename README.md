@@ -42,8 +42,8 @@ $ cargo run --release -- --boot --kvm --serial
 
 - [x] APIC support
 - [x] Preemptive multitasking
-- [ ] Memory management
-- [ ] Task lifecycle management
+- [x] Memory management
+- [x] Task lifecycle management
 - [ ] Inter process communication
 - [x] Symmetric multiprocessing
 - [x] PCIe support

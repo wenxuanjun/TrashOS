@@ -1,12 +1,11 @@
 use spin::Lazy;
+use x86_64::VirtAddr;
 use x86_64::instructions::port::PortReadOnly;
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::InterruptDescriptorTable;
 use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::structures::idt::PageFaultErrorCode;
-use x86_64::VirtAddr;
 
-use super::apic::LAPIC;
 use super::gdt::DOUBLE_FAULT_IST_INDEX;
 use crate::driver::terminal::SCANCODE_QUEUE;
 use crate::task::scheduler::SCHEDULER;
@@ -131,7 +130,6 @@ extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {
 
 extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error_code: PageFaultErrorCode) {
     log::warn!("Exception: Page Fault\n{:#?}", frame);
-    log::warn!("Processor: {}", unsafe { LAPIC.lock().id() });
     log::warn!("Error Code: {:#x}", error_code);
     match Cr2::read() {
         Ok(address) => {

@@ -1,5 +1,7 @@
-use core::arch::asm;
-use core::mem::{transmute, variant_count};
+use core::{
+    arch::asm,
+    mem::{transmute, variant_count},
+};
 
 use super::operations::*;
 
@@ -32,11 +34,11 @@ pub extern "C" fn syscall_matcher(
     arg4: usize,
     arg5: usize,
     arg6: usize,
-) {
-    let syscall_number_raw: usize;
-    unsafe { asm!("mov {0}, rax", out(reg) syscall_number_raw) };
+) -> isize {
+    let syscall_index: usize;
+    unsafe { asm!("mov {0}, rax", out(reg) syscall_index) };
 
-    match SyscallIndex::from(syscall_number_raw) {
+    match SyscallIndex::from(syscall_index) {
         SyscallIndex::Read => unimplemented!(),
         SyscallIndex::Write => write(arg1 as *const u8, arg2),
         SyscallIndex::Mmap => mmap(arg1, arg2),

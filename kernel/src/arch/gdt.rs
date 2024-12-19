@@ -1,10 +1,10 @@
 use spin::Lazy;
-use x86_64::instructions::segmentation::{Segment, CS, SS};
+use x86_64::VirtAddr;
+use x86_64::instructions::segmentation::{CS, SS, Segment};
 use x86_64::instructions::tables::load_tss;
 use x86_64::structures::gdt::GlobalDescriptorTable;
 use x86_64::structures::gdt::{Descriptor, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
-use x86_64::VirtAddr;
 
 pub const DOUBLE_FAULT_IST_INDEX: usize = 0;
 const FAULT_STACK_SIZE: usize = 256;
@@ -28,6 +28,13 @@ impl Default for CpuInfo {
 }
 
 impl CpuInfo {
+    #[inline]
+    pub fn set_ring0_rsp(&mut self, rsp: VirtAddr) {
+        self.tss.privilege_stack_table[0] = rsp;
+    }
+}
+
+impl CpuInfo {
     pub fn init(&mut self) {
         let (mut gdt, mut selectors) = COMMON_GDT.clone();
 
@@ -36,15 +43,13 @@ impl CpuInfo {
             VirtAddr::new(stack_start + self.fault_stack.len() as u64)
         };
 
-        let tss_ptr: *const _ = &self.tss;
-        let tss_selector = Some(gdt.append(Descriptor::tss_segment(unsafe { &*tss_ptr })));
+        let tss_ref = unsafe { &*(&self.tss as *const _) };
+        let tss_selector = Some(gdt.append(Descriptor::tss_segment(tss_ref)));
         selectors.tss_selector = tss_selector;
 
         self.gdt = gdt;
         self.selectors = Some(selectors);
-    }
 
-    pub fn load(&self) {
         let gdt_ptr: *const _ = &self.gdt;
         unsafe { (*gdt_ptr).load() }
 
@@ -54,10 +59,6 @@ impl CpuInfo {
             SS::set_reg(selectors.data_selector);
             load_tss(selectors.tss_selector.unwrap());
         }
-    }
-
-    pub fn set_ring0_rsp(&mut self, rsp: VirtAddr) {
-        self.tss.privilege_stack_table[0] = rsp;
     }
 }
 
@@ -94,6 +95,7 @@ impl Selectors {
         let selectors = &COMMON_GDT.1;
         (selectors.code_selector, selectors.data_selector)
     }
+
     pub fn get_user_segments() -> (SegmentSelector, SegmentSelector) {
         let selectors = &COMMON_GDT.1;
         (selectors.user_code_selector, selectors.user_data_selector)

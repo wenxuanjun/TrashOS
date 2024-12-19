@@ -13,7 +13,7 @@ pub struct Speaker {
 }
 
 impl Speaker {
-    pub const fn default() -> Self {
+    const fn default() -> Self {
         Self {
             channel_2: Port::new(0x42),
             command_register: Port::new(0x43),

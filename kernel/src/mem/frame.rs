@@ -1,15 +1,41 @@
+use core::fmt::{self, Display};
+use humansize::{BINARY, format_size};
 use limine::memory_map::EntryType;
 use limine::response::MemoryMapResponse;
+use x86_64::PhysAddr;
 use x86_64::structures::paging::{FrameAllocator, PhysFrame};
 use x86_64::structures::paging::{FrameDeallocator, Size4KiB};
-use x86_64::PhysAddr;
 
 use super::bitmap::Bitmap;
 use super::convert_physical_to_virtual;
 
 pub struct BitmapFrameAllocator {
     bitmap: Bitmap,
+    origin_frames: usize,
     usable_frames: usize,
+}
+
+impl BitmapFrameAllocator {
+    #[inline]
+    fn used_bytes(&self) -> usize {
+        (self.origin_frames - self.usable_frames) * 4096
+    }
+
+    #[inline]
+    fn total_bytes(&self) -> usize {
+        self.origin_frames * 4096
+    }
+}
+
+impl Display for BitmapFrameAllocator {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} used, {} total",
+            format_size(self.used_bytes(), BINARY),
+            format_size(self.total_bytes(), BINARY)
+        )
+    }
 }
 
 impl BitmapFrameAllocator {
@@ -41,13 +67,13 @@ impl BitmapFrameAllocator {
         };
 
         let mut bitmap = Bitmap::new(bitmap_buffer);
-        let mut usable_frames = 0;
+        let mut origin_frames = 0;
 
         for region in usable_regions {
             let start_page_index = (region.base / 4096) as usize;
             let frame_count = (region.length / 4096) as usize;
 
-            usable_frames += frame_count;
+            origin_frames += frame_count;
             bitmap.set_range(start_page_index, start_page_index + frame_count, true);
         }
 
@@ -55,17 +81,14 @@ impl BitmapFrameAllocator {
         let bitmap_frame_count = bitmap_size.div_ceil(4096);
         let bitmap_frame_end = bitmap_frame_start + bitmap_frame_count;
 
-        usable_frames -= bitmap_frame_count;
+        let usable_frames = origin_frames - bitmap_frame_count;
         bitmap.set_range(bitmap_frame_start, bitmap_frame_end, false);
 
         BitmapFrameAllocator {
             bitmap,
+            origin_frames,
             usable_frames,
         }
-    }
-
-    pub fn available_frames(&self) -> usize {
-        self.usable_frames
     }
 
     pub fn allocate_frames(&mut self, count: usize) -> Option<PhysFrame> {

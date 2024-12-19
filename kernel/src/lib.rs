@@ -15,10 +15,12 @@ pub mod unwind;
 
 extern crate alloc;
 
+use arch::smp::BSP_LAPIC_ID;
+
 pub fn init() {
     mem::init_heap();
     driver::log::init();
-    arch::smp::CPUS.write().init_bsp();
+    arch::smp::CPUS.write().load(*BSP_LAPIC_ID);
     arch::interrupts::IDT.load();
     arch::smp::CPUS.write().init_ap();
     arch::apic::init();

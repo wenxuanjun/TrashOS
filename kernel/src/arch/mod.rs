@@ -14,7 +14,7 @@ pub mod interrupts;
 pub mod smp;
 
 unsafe extern "C" fn ap_entry(smp_info: &Cpu) -> ! {
-    CPUS.write().get(smp_info.lapic_id).load();
+    CPUS.write().load(smp_info.lapic_id);
     IDT.load();
 
     while !APIC_INIT.load(Ordering::SeqCst) {

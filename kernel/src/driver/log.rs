@@ -1,4 +1,4 @@
-use log::{set_logger, set_max_level, Level, Record};
+use log::{Level, Record, set_logger, set_max_level};
 use log::{LevelFilter, Log, Metadata};
 
 use crate::{println, serial_println};

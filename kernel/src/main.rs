@@ -64,21 +64,10 @@ extern "C" fn kmain() -> ! {
     let current_time = RtcDateTime::default().to_datetime().unwrap();
     log::info!("Current time: {}", current_time);
 
-    HPET.set_timer(HPET.estimate(core::time::Duration::from_secs(5)));
-
-    // TIMER.lock().add(ThreadId(0), 100);
-    // TIMER.lock().add(ThreadId(1), 200);
-    // TIMER.lock().add(ThreadId(2), 50);
-    // TIMER.lock().add(ThreadId(3), 150);
-    // kernel::println!("Timer pop: {:?}", TIMER.lock().pop());
-    // kernel::println!("Timer pop: {:?}", TIMER.lock().pop());
-    // kernel::println!("Timer pop: {:?}", TIMER.lock().pop());
-    // kernel::println!("Timer pop: {:?}", TIMER.lock().pop());
-
     let hello_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/hello");
     let counter_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/counter");
     Process::new_user_process("Hello", hello_raw_elf);
-    Process::new_user_process("Counter", counter_raw_elf);
+    Process::new_user_process("Number", counter_raw_elf);
 
     loop {
         x86_64::instructions::hlt();

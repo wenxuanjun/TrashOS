@@ -1,6 +1,6 @@
 use x86_64::structures::paging::FrameDeallocator;
 use x86_64::structures::paging::{PageSize, Size4KiB};
-use x86_64::{structures::paging::PhysFrame, PhysAddr, VirtAddr};
+use x86_64::{PhysAddr, VirtAddr, structures::paging::PhysFrame};
 
 use super::FRAME_ALLOCATOR;
 use super::{convert_physical_to_virtual, convert_virtual_to_physical};

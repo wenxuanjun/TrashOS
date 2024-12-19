@@ -1,10 +1,10 @@
 use core::marker::PhantomData;
+use x86_64::VirtAddr;
 use x86_64::instructions::interrupts;
 use x86_64::structures::paging::mapper::MapToError;
 use x86_64::structures::paging::{FrameAllocator, PhysFrame};
 use x86_64::structures::paging::{Mapper, OffsetPageTable, PageTableFlags};
 use x86_64::structures::paging::{Page, PageSize, Size4KiB};
-use x86_64::VirtAddr;
 
 use super::BitmapFrameAllocator;
 

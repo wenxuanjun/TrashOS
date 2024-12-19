@@ -1,14 +1,12 @@
 #![no_std]
 #![no_main]
 
-extern crate alloc;
-use alloc::format;
-use apps::syscall::sleep;
+use std::*;
 
 #[unsafe(no_mangle)]
 fn main() {
     for (counter, _) in (0..100).enumerate() {
-        apps::print!("{}", format!("[{}]", counter));
+        print!("[{}]", counter);
         sleep(50);
     }
 }

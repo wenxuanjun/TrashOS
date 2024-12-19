@@ -1,5 +1,5 @@
-use time::{error::ComponentRange, Time};
 use time::{Date, Month, OffsetDateTime, PrimitiveDateTime};
+use time::{Time, error::ComponentRange};
 use x86_64::instructions::port::Port;
 
 #[derive(Debug)]

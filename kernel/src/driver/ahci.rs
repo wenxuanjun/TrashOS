@@ -8,8 +8,8 @@ use vcell::VolatileCell as Volatile;
 use x86_64::{PhysAddr, VirtAddr};
 
 use super::pci::PCI_DEVICES;
-use crate::mem::convert_physical_to_virtual;
 use crate::mem::DmaManager;
+use crate::mem::convert_physical_to_virtual;
 
 pub static AHCI: Lazy<Mutex<AhciManager>> = Lazy::new(|| Mutex::new(AhciManager::default()));
 

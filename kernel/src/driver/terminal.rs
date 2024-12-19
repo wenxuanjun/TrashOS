@@ -2,14 +2,14 @@ use alloc::boxed::Box;
 use core::fmt::{self, Write};
 use core::time::Duration;
 use crossbeam_queue::ArrayQueue;
-use os_terminal::font::TrueTypeFont;
 use os_terminal::Terminal;
+use os_terminal::font::TrueTypeFont;
 use spin::{Lazy, Mutex};
 use x86_64::instructions::interrupts;
 
 use super::{display::Display, speaker::SPEAKER};
 
-const FONT_BUFFER: &[u8] = include_bytes!("../../../builder/assets/SourceHanMono.otf");
+const FONT_BUFFER: &[u8] = include_bytes!("../../../builder/assets/SourceCodePro.ttf");
 
 pub static TERMINAL: Lazy<Mutex<Terminal<Display>>> = Lazy::new(|| {
     let mut terminal = Terminal::new(Display::default());
@@ -50,12 +50,12 @@ pub fn terminal_thread() {
     TERMINAL.lock().set_auto_flush(false);
     loop {
         interrupts::without_interrupts(|| {
-            if let Some(scancode) = SCANCODE_QUEUE.pop() {
+            while let Some(scancode) = SCANCODE_QUEUE.pop() {
                 let result = TERMINAL.lock().handle_keyboard(scancode);
                 result.map(|ansi_string| print!("{}", ansi_string));
             }
             TERMINAL.lock().flush();
         });
-        x86_64::instructions::hlt();
+        crate::syscall::r#yield();
     }
 }

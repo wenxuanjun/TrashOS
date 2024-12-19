@@ -10,9 +10,9 @@ use crate::mem::{MappingType, MemoryManager};
 use crate::task::scheduler::SCHEDULER;
 use crate::task::timer::TIMER;
 
-pub fn write(buffer: *const u8, length: usize) {
+pub fn write(buffer: *const u8, length: usize) -> isize {
     if length == 0 {
-        return;
+        return 0;
     }
 
     if let Ok(string) = unsafe {
@@ -21,23 +21,27 @@ pub fn write(buffer: *const u8, length: usize) {
     } {
         crate::print!("{}", string);
     };
+
+    length as isize
 }
 
-pub fn mmap(address: usize, length: usize) {
+pub fn mmap(address: usize, length: usize) -> isize {
     if length == 0 {
-        return;
+        return 0;
     }
 
-    MemoryManager::alloc_range(
+    match MemoryManager::alloc_range(
         VirtAddr::new(address as u64),
         length as u64,
         MappingType::UserData.flags(),
         &mut ref_current_page_table(),
-    )
-    .expect("Failed to allocate memory for mmap");
+    ) {
+        Ok(_) => length as isize,
+        Err(_) => -1,
+    }
 }
 
-pub fn r#yield() {
+pub fn r#yield() -> isize {
     unsafe {
         asm!(
             "int {interrupt_number}",
@@ -45,29 +49,36 @@ pub fn r#yield() {
             const InterruptIndex::Timer as u8
         );
     }
+
+    0
 }
 
-pub fn sleep(duration: u64) {
+pub fn sleep(duration: u64) -> isize {
+    let thread = match SCHEDULER.lock().current().upgrade() {
+        Some(t) => t,
+        None => return -1,
+    };
+
     TIMER.lock().add(Duration::from_millis(duration));
-    if let Some(thread) = SCHEDULER.lock().current_thread().upgrade() {
-        thread.write().sleeping = true;
-    }
+    thread.write().sleeping = true;
     r#yield();
+    0
 }
 
-pub fn exit() {
-    let current_thread = SCHEDULER.lock().current_thread();
+pub fn exit() -> isize {
+    let process = SCHEDULER
+        .lock()
+        .current()
+        .upgrade()
+        .and_then(|thread| thread.read().process.upgrade());
 
-    if let Some(current_thread) = current_thread.upgrade() {
-        let current_thread = current_thread.read();
-        if let Some(process) = current_thread.process.upgrade() {
-            let mut scheduler = SCHEDULER.lock();
-            for thread in process.read().threads.iter() {
-                scheduler.remove(Arc::downgrade(thread));
-            }
-            process.read().exit_process();
+    if let Some(process) = process {
+        let mut scheduler = SCHEDULER.lock();
+        for thread in process.read().threads.iter() {
+            scheduler.remove(Arc::downgrade(thread));
         }
+        process.read().exit();
     }
 
-    r#yield();
+    r#yield()
 }

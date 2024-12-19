@@ -1,13 +1,13 @@
-use x86_64::structures::paging::mapper::*;
 use x86_64::structures::paging::FrameAllocator;
 use x86_64::structures::paging::FrameDeallocator;
 use x86_64::structures::paging::PhysFrame;
+use x86_64::structures::paging::mapper::*;
 use x86_64::structures::paging::{PageTable, PageTableFlags};
 use x86_64::{PhysAddr, VirtAddr};
 
-use super::MappingType;
 use super::FRAME_ALLOCATOR;
-use super::{convert_physical_to_virtual, BitmapFrameAllocator, PHYSICAL_MEMORY_OFFSET};
+use super::MappingType;
+use super::{BitmapFrameAllocator, PHYSICAL_MEMORY_OFFSET, convert_physical_to_virtual};
 
 pub trait ExtendedPageTable {
     fn physical_address(&self) -> PhysAddr;
