@@ -1,7 +1,5 @@
-use core::{
-    arch::asm,
-    mem::{transmute, variant_count},
-};
+use core::arch::asm;
+use core::mem::{transmute, variant_count};
 
 use super::operations::*;
 
@@ -16,13 +14,13 @@ enum SyscallIndex {
     Exit,
 }
 
-impl From<usize> for SyscallIndex {
-    fn from(number: usize) -> Self {
-        let syscall_length = variant_count::<Self>();
-        if number >= syscall_length {
-            panic!("Invalid syscall index: {}", number);
-        }
-        unsafe { transmute(number as u8) }
+impl TryFrom<usize> for SyscallIndex {
+    type Error = ();
+
+    fn try_from(number: usize) -> Result<Self, Self::Error> {
+        (number < variant_count::<Self>())
+            .then(|| unsafe { transmute(number as u8) })
+            .ok_or(())
     }
 }
 
@@ -38,12 +36,12 @@ pub extern "C" fn syscall_matcher(
     let syscall_index: usize;
     unsafe { asm!("mov {0}, rax", out(reg) syscall_index) };
 
-    match SyscallIndex::from(syscall_index) {
+    syscall_index.try_into().map_or(-1, |index| match index {
         SyscallIndex::Read => unimplemented!(),
         SyscallIndex::Write => write(arg1 as *const u8, arg2),
         SyscallIndex::Mmap => mmap(arg1, arg2),
         SyscallIndex::Yield => r#yield(),
         SyscallIndex::Sleep => sleep(arg1 as u64),
         SyscallIndex::Exit => exit(),
-    }
+    })
 }

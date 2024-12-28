@@ -85,7 +85,7 @@ fn main() {
 }
 
 fn build_img() -> PathBuf {
-    let kernel_path = Path::new(env!("CARGO_BIN_FILE_KERNEL_kernel"));
+    let kernel_path = Path::new(env!("CARGO_BIN_FILE_KERNEL"));
     println!("Building UEFI disk image for kernel at {:#?}", &kernel_path);
 
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));

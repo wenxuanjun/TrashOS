@@ -4,9 +4,9 @@
 #![feature(alloc_error_handler)]
 #![feature(stmt_expr_attributes)]
 
-// use kernel::device::ahci::AHCI;
+// use kernel::driver::ahci::AHCI;
 use kernel::driver::hpet::HPET;
-// use kernel::device::nvme::NVME;
+// use kernel::driver::nvme::NVME;
 use kernel::driver::rtc::RtcDateTime;
 use kernel::driver::terminal::terminal_thread;
 use kernel::task::process::Process;
@@ -66,8 +66,8 @@ extern "C" fn kmain() -> ! {
 
     let hello_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/hello");
     let counter_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/counter");
-    Process::new_user_process("Hello", hello_raw_elf);
-    Process::new_user_process("Number", counter_raw_elf);
+    Process::create("Hello", hello_raw_elf);
+    Process::create("Number", counter_raw_elf);
 
     loop {
         x86_64::instructions::hlt();

@@ -16,10 +16,14 @@ use crate::mem::{MappingType, MemoryManager};
 pub(super) type SharedProcess = Arc<RwLock<Process>>;
 pub(super) type WeakSharedProcess = Weak<RwLock<Process>>;
 
-static PROCESSES: RwLock<Vec<SharedProcess>> = RwLock::new(Vec::new());
-pub static KERNEL_PROCESS: Lazy<SharedProcess> = Lazy::new(Process::init_kernel_process);
+pub static KERNEL_PROCESS: Lazy<SharedProcess> = Lazy::new(|| {
+    let process = Process::new("kernel", ref_current_page_table());
+    let process = Arc::new(RwLock::new(process));
+    PROCESSES.write().push(process.clone());
+    process
+});
 
-const KERNEL_PROCESS_NAME: &str = "kernel";
+static PROCESSES: RwLock<Vec<SharedProcess>> = RwLock::new(Vec::new());
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ProcessId(pub u64);
@@ -59,14 +63,7 @@ impl Process {
         }
     }
 
-    pub fn init_kernel_process() -> SharedProcess {
-        let process = Self::new(KERNEL_PROCESS_NAME, ref_current_page_table());
-        let process = Arc::new(RwLock::new(process));
-        PROCESSES.write().push(process.clone());
-        process
-    }
-
-    pub fn new_user_process(name: &str, elf_data: &'static [u8]) {
+    pub fn create(name: &str, elf_data: &'static [u8]) {
         let binary = ProcessBinary::parse(elf_data);
         let mut page_table = unsafe { KERNEL_PAGE_TABLE.lock().deep_copy() };
         ProcessBinary::map_segments(&binary, &mut page_table);
