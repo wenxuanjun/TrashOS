@@ -2,7 +2,7 @@ use x86_64::structures::gdt::SegmentSelector;
 use x86_64::{PhysAddr, VirtAddr};
 
 #[derive(Debug, Clone, Copy, Default)]
-#[repr(packed)]
+#[repr(C, packed)]
 #[allow(dead_code)]
 pub struct Context {
     cr3: usize,

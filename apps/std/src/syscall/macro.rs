@@ -1,23 +1,23 @@
 macro_rules! syscall {
-    (@mov 0) => {"rdi, {1}"};
-    (@mov 1) => {"rsi, {2}"};
-    (@mov 2) => {"rdx, {3}"};
-    (@mov 3) => {"r10, {4}"};
-    (@mov 4) => {"r8, {5}"};
-    (@mov 5) => {"r9, {6}"};
+    (@mov 0) => {"rdi, {0}"};
+    (@mov 1) => {"rsi, {1}"};
+    (@mov 2) => {"rdx, {2}"};
+    (@mov 3) => {"r10, {3}"};
+    (@mov 4) => {"r8, {4}"};
+    (@mov 5) => {"r9, {5}"};
     (@mov $index:expr) => {compile_error!("Allows up to 6 arguments")};
 
     (@noret $index:expr $(,$arg:expr)*) => {
         unsafe {
             core::arch::asm!(
-                "mov rax, {0:r}",
                 $(
                     ${ignore($arg)}
                     concat!("mov ", syscall!(@mov ${index()})),
                 )*
                 "syscall",
-                in(reg) $index,
                 $(in(reg) $arg,)*
+                in("rax") $index,
+                clobber_abi("C"),
                 options(noreturn),
             );
         }
@@ -27,17 +27,15 @@ macro_rules! syscall {
         unsafe {
             let ret;
             core::arch::asm!(
-                "mov rax, {0:r}",
                 $(
                     ${ignore($arg)}
                     concat!("mov ", syscall!(@mov ${index()})),
                 )*
                 "syscall",
-                in(reg) $index,
                 $(in(reg) $arg,)*
-                out("rcx") _,
-                out("r11") _,
+                in("rax") $index,
                 lateout("rax") ret,
+                clobber_abi("C"),
             );
             ret
         }

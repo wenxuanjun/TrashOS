@@ -1,8 +1,8 @@
 #![no_std]
 #![no_main]
-#![feature(naked_functions)]
 #![feature(alloc_error_handler)]
 #![feature(macro_metavar_expr)]
+#![allow(hidden_glob_reexports)]
 
 mod memory;
 mod stdio;
@@ -12,7 +12,6 @@ mod unwind;
 pub use stdio::_print;
 pub use syscall::*;
 
-#[allow(hidden_glob_reexports)]
 extern crate alloc;
 pub use alloc::*;
 

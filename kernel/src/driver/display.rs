@@ -26,7 +26,7 @@ pub struct Display {
 impl Default for Display {
     fn default() -> Self {
         let response = FRAMEBUFFER_REQUEST.get_response().unwrap();
-        let frame_buffer = response.framebuffers().next().take().unwrap();
+        let frame_buffer = response.framebuffers().next().unwrap();
 
         let width = frame_buffer.width() as _;
         let height = frame_buffer.height() as _;

@@ -61,8 +61,8 @@ pub fn sleep(duration: u64) -> isize {
 
     TIMER.lock().add(Duration::from_millis(duration));
     thread.write().sleeping = true;
-    r#yield();
-    0
+
+    r#yield()
 }
 
 pub fn exit() -> isize {

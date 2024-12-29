@@ -73,7 +73,7 @@ impl FatBuilder {
             }
 
             let mut new_file = root_dir
-                .create_file(&target_path_raw)
+                .create_file(target_path_raw)
                 .with_context(|| format!("failed to create file at `{}`", target_path.display()))?;
 
             new_file.truncate().unwrap();

@@ -58,8 +58,9 @@ pub fn terminal_thread() {
 
     loop {
         while let Some(scancode) = SCANCODE_QUEUE.pop() {
-            let code = terminal.handle_keyboard(scancode);
-            code.map(|c| TerminalWriter.write_str(&c));
+            terminal
+                .handle_keyboard(scancode)
+                .map(|c| TerminalWriter.write_str(&c));
         }
 
         while let Some(character) = TERMINAL_BUFFER.pop() {

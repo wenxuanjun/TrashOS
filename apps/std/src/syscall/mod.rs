@@ -18,7 +18,7 @@ pub fn r#yield() -> isize {
 }
 
 pub fn sleep(duration: usize) -> isize {
-    syscall!(4, duration as usize)
+    syscall!(4, duration)
 }
 
 pub fn exit() -> ! {

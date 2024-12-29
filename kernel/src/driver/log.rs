@@ -49,8 +49,6 @@ impl Logger {
 }
 
 impl Log for Logger {
-    fn flush(&self) {}
-
     fn enabled(&self, metadata: &Metadata) -> bool {
         metadata.level() <= Level::Trace
     }
@@ -61,4 +59,6 @@ impl Log for Logger {
             self.log_message(record, with_location);
         }
     }
+
+    fn flush(&self) {}
 }
