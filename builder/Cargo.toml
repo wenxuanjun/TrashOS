@@ -4,16 +4,16 @@ edition = "2024"
 version = "0.1.0"
 
 [dependencies]
-argh = "0.1.12"
-anyhow = "1.0.94"
-tempfile = "3.14.0"
+argh = "0.1.13"
+anyhow = "1.0.95"
+tempfile = "3.15.0"
 gpt = "4.0.0"
 ovmf-prebuilt = "0.2.1"
+fatfs = "0.3.6"
 
-[dependencies.fatfs]
-version = "0.3.6"
-default-features = false
-features = ["std", "alloc"]
+[dependencies.derive_more]
+version = "2.0.1"
+features = ["full"]
 
 [dependencies.kernel]
 path = "../kernel"

@@ -3,8 +3,8 @@ members = ["apps/*", "builder", "kernel"]
 resolver = "2"
 default-members = ["builder"]
 
-[profile.dev]
-panic = "abort"
+# [profile.dev]
+# panic = "abort"
 
 [profile.release]
 lto = true

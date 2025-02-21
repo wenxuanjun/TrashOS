@@ -40,18 +40,18 @@ impl Display for BitmapFrameAllocator {
 
 impl BitmapFrameAllocator {
     pub fn init(memory_map: &MemoryMapResponse) -> Self {
-        let memory_size = memory_map
-            .entries()
-            .last()
-            .map(|region| region.base + region.length)
-            .expect("No memory regions found");
-
-        let bitmap_size = (memory_size / 4096).div_ceil(8) as usize;
-
         let usable_regions = memory_map
             .entries()
             .iter()
             .filter(|region| region.entry_type == EntryType::USABLE);
+
+        let memory_size = usable_regions
+            .clone()
+            .next_back()
+            .map(|region| region.base + region.length)
+            .expect("No memory regions found");
+
+        let bitmap_size = (memory_size / 4096).div_ceil(8) as usize;
 
         let bitmap_address = usable_regions
             .clone()
@@ -59,35 +59,29 @@ impl BitmapFrameAllocator {
             .map(|region| region.base)
             .expect("No suitable memory region for bitmap");
 
-        let bitmap_buffer = unsafe {
+        let mut bitmap = unsafe {
             let physical_address = PhysAddr::new(bitmap_address);
-            let virtual_address = convert_physical_to_virtual(physical_address).as_u64();
-            let bitmap_inner_size = bitmap_size / size_of::<usize>();
-            core::slice::from_raw_parts_mut(virtual_address as *mut usize, bitmap_inner_size)
+            let ptr = convert_physical_to_virtual(physical_address).as_mut_ptr();
+            Bitmap::new(core::slice::from_raw_parts_mut(ptr, bitmap_size))
         };
 
-        let mut bitmap = Bitmap::new(bitmap_buffer);
         let mut origin_frames = 0;
 
         for region in usable_regions {
-            let start_page_index = (region.base / 4096) as usize;
+            let start_index = (region.base / 4096) as usize;
             let frame_count = (region.length / 4096) as usize;
-
             origin_frames += frame_count;
-            bitmap.set_range(start_page_index, start_page_index + frame_count, true);
+            bitmap.set_range(start_index, start_index + frame_count, true);
         }
 
-        let bitmap_frame_start = (bitmap_address / 4096) as usize;
-        let bitmap_frame_count = bitmap_size.div_ceil(4096);
-        let bitmap_frame_end = bitmap_frame_start + bitmap_frame_count;
+        let bitmap_start = (bitmap_address / 4096) as usize;
+        let bitmap_frames = bitmap_size.div_ceil(4096);
+        bitmap.set_range(bitmap_start, bitmap_start + bitmap_frames, false);
 
-        let usable_frames = origin_frames - bitmap_frame_count;
-        bitmap.set_range(bitmap_frame_start, bitmap_frame_end, false);
-
-        BitmapFrameAllocator {
+        Self {
             bitmap,
             origin_frames,
-            usable_frames,
+            usable_frames: origin_frames - bitmap_frames,
         }
     }
 

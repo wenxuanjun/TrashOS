@@ -14,7 +14,9 @@ use crate::mem::convert_physical_to_virtual;
 
 pub static PCI_DEVICES: Lazy<Mutex<Vec<PciDevice>>> = Lazy::new(|| {
     let pci_access = PciAccess::new(&ACPI.pci_regions);
-    Mutex::new(PciResolver::resolve(pci_access))
+    let devices = PciResolver::resolve(pci_access);
+    devices.iter().for_each(|device| log::info!("{}", device));
+    Mutex::new(devices)
 });
 
 pub struct PciAccess<'a>(&'a PciConfigRegions<'a, Global>);
@@ -35,9 +37,10 @@ impl<'a> PciAccess<'a> {
         let physical_address = self
             .0
             .physical_address(segment, bus, device, function)
-            .expect("Invalid PCI address");
+            .expect("Invalid PCI address")
+            + offset as u64;
 
-        convert_physical_to_virtual(PhysAddr::new(physical_address)) + offset as u64
+        convert_physical_to_virtual(PhysAddr::new(physical_address))
     }
 }
 
@@ -199,10 +202,7 @@ impl<'a> PciResolver<'a> {
 
                 let start_bus = bridge_header.secondary_bus_number(&self.access);
                 let end_bus = bridge_header.subordinate_bus_number(&self.access);
-
-                for bus_id in start_bus..=end_bus {
-                    self.scan_bus(segment, bus_id);
-                }
+                (start_bus..=end_bus).for_each(|bus_id| self.scan_bus(segment, bus_id));
             }
             _ => {}
         }

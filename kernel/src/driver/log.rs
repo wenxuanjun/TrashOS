@@ -1,8 +1,6 @@
 use log::{Level, Record, set_logger, set_max_level};
 use log::{LevelFilter, Log, Metadata};
 
-use crate::{println, serial_println};
-
 pub fn init() {
     static LOGGER: Logger = Logger;
     set_logger(&LOGGER).unwrap();
@@ -11,13 +9,13 @@ pub fn init() {
 
 macro_rules! log_output {
     ($color:expr, $level:expr, $args:expr, $($extra:tt)*) => {
-        serial_println!(
+        crate::serial_println!(
             "[{}] {}{}",
             format_args!("\x1b[{}m{}\x1b[0m", $color, $level),
             $args,
             format_args!($($extra)*)
         );
-        println!(
+        crate::println!(
             "[{}] {}{}",
             format_args!("\x1b[{}m{}\x1b[0m", $color, $level),
             $args,

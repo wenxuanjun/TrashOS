@@ -1,17 +1,14 @@
 #![no_std]
 #![no_main]
-#![feature(naked_functions)]
-#![feature(alloc_error_handler)]
-#![feature(stmt_expr_attributes)]
 
-// use kernel::driver::ahci::AHCI;
+use kernel::driver::ahci::AHCI;
 use kernel::driver::hpet::HPET;
-// use kernel::driver::nvme::NVME;
 use kernel::driver::rtc::RtcDateTime;
-use kernel::driver::terminal::terminal_thread;
+use kernel::driver::term::terminal_thread;
 use kernel::task::process::Process;
 use kernel::task::thread::Thread;
 use limine::BaseRevision;
+use unwinding::panic::catch_unwind;
 
 #[used]
 #[unsafe(link_section = ".requests")]
@@ -19,40 +16,11 @@ static BASE_REVISION: BaseRevision = BaseRevision::new();
 
 #[unsafe(no_mangle)]
 extern "C" fn kmain() -> ! {
-    kernel::init();
+    catch_unwind(|| kernel::init()).unwrap();
     log::info!("Boot time: {:?}", HPET.elapsed());
 
-    // let mut ahci_manager = AHCI.lock();
-    // log::info!("AHCI disk count: {}", ahci_manager.len());
-
-    // if let Some(disk) = ahci_manager.get_disk(0) {
-    //     log::info!("AHCI identity: {:#?}", disk.get_identity());
-
-    //     let mut read_buffer = [0u8; 512];
-    //     disk.read_block(1, &mut read_buffer);
-    //     log::info!("AHCI first sector: {:?}", read_buffer);
-    // }
-
-    // let mut nvme_manager = NVME.lock();
-    // log::info!("NVMe disk count: {}", nvme_manager.len());
-
-    // if let Some(disk) = nvme_manager.get_disk(0) {
-    //     log::info!("NVMe identity: {:#?}", disk.get_identity());
-
-    //     let mut read_buffer = [0u8; 512];
-    //     disk.read_block(1, &mut read_buffer);
-    //     log::info!("NVMe first sector: {:?}", read_buffer);
-    // }
-
-    // let mut write_buffer = [0u8; 512];
-    // write_buffer[0] = 11;
-    // write_buffer[1] = 45;
-    // write_buffer[2] = 14;
-    // nvme_manager.write_block(0, 1, &write_buffer);
-
-    // let mut read_buffer = [0u8; 512];
-    // nvme_manager.read_block(0, 1, &mut read_buffer);
-    // log::info!("NVMe first sector: {:?}", read_buffer);
+    let ahci_manager = AHCI.lock();
+    log::info!("AHCI disk count: {}", ahci_manager.len());
 
     Thread::new_kernel_thread(terminal_thread);
 

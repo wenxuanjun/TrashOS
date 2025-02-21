@@ -7,7 +7,7 @@ use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::structures::idt::PageFaultErrorCode;
 
 use super::gdt::DOUBLE_FAULT_IST_INDEX;
-use crate::driver::terminal::SCANCODE_QUEUE;
+use crate::driver::term::SCANCODE_QUEUE;
 use crate::task::scheduler::SCHEDULER;
 use crate::task::timer::TIMER;
 
@@ -59,13 +59,11 @@ pub extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
 
     unsafe {
         core::arch::naked_asm!(
-            "cli",
             crate::push_context!(),
             "mov rdi, rsp",
             "call {timer_handler}",
             "mov rsp, rax",
             crate::pop_context!(),
-            "sti",
             "iretq",
             timer_handler = sym timer_handler,
         );
@@ -73,13 +71,13 @@ pub extern "x86-interrupt" fn timer_interrupt(_frame: InterruptStackFrame) {
 }
 
 extern "x86-interrupt" fn lapic_error(_frame: InterruptStackFrame) {
-    log::error!("Local APIC error!");
     super::apic::end_of_interrupt();
+    log::error!("Local APIC error!");
 }
 
 extern "x86-interrupt" fn spurious_interrupt(_frame: InterruptStackFrame) {
-    log::debug!("Received spurious interrupt!");
     super::apic::end_of_interrupt();
+    log::debug!("Received spurious interrupt!");
 }
 
 extern "x86-interrupt" fn hpet_timer_interrupt(_frame: InterruptStackFrame) {
@@ -117,9 +115,7 @@ extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, error_code: u
 extern "x86-interrupt" fn keyboard_interrupt(_frame: InterruptStackFrame) {
     super::apic::end_of_interrupt();
     let scancode = unsafe { PortReadOnly::new(0x60).read() };
-    if SCANCODE_QUEUE.push(scancode).is_err() {
-        log::warn!("Scancode queue full, dropping: {:#x}", scancode);
-    }
+    SCANCODE_QUEUE.force_push(scancode);
 }
 
 extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {

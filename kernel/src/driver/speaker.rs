@@ -2,7 +2,7 @@ use core::time::Duration;
 use spin::Mutex;
 use x86_64::instructions::port::Port;
 
-use super::hpet::HPET;
+use crate::syscall::sleep;
 
 pub static SPEAKER: Mutex<Speaker> = Mutex::new(Speaker::default());
 
@@ -23,7 +23,7 @@ impl Speaker {
 
     pub fn beep(&mut self, frequency: u32, duration: Duration) {
         self.play_sound(frequency);
-        HPET.busy_wait(duration);
+        sleep(duration.as_millis() as u64);
         self.nosound();
     }
 }

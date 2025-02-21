@@ -36,12 +36,10 @@ pub static FRAME_ALLOCATOR: Lazy<Mutex<BitmapFrameAllocator>> = Lazy::new(|| {
     Mutex::new(BitmapFrameAllocator::init(memory_map))
 });
 
-#[inline]
 pub fn convert_physical_to_virtual(physical_address: PhysAddr) -> VirtAddr {
     VirtAddr::new(physical_address.as_u64() + *PHYSICAL_MEMORY_OFFSET)
 }
 
-#[inline]
 pub fn convert_virtual_to_physical(virtual_address: VirtAddr) -> PhysAddr {
     PhysAddr::new(virtual_address.as_u64() - *PHYSICAL_MEMORY_OFFSET)
 }

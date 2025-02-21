@@ -1,9 +1,12 @@
+use anyhow::{Result, anyhow};
 use argh::FromArgs;
 use builder::ImageBuilder;
+use derive_more::FromStr;
 use ovmf_prebuilt::{Arch, FileType, Prebuilt, Source};
 use std::collections::BTreeMap;
+use std::fs::File;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 #[derive(FromArgs)]
 #[argh(description = "TrashOS bootloader and kernel builder")]
@@ -11,6 +14,11 @@ struct Args {
     #[argh(switch, short = 'b')]
     #[argh(description = "boot the constructed image")]
     boot: bool,
+
+    #[argh(option, short = 'd')]
+    #[argh(default = "false")]
+    #[argh(description = "boot device")]
+    dump: bool,
 
     #[argh(switch, short = 'k')]
     #[argh(description = "use KVM acceleration")]
@@ -28,78 +36,118 @@ struct Args {
     #[argh(switch, short = 's')]
     #[argh(description = "redirect serial to stdio")]
     serial: bool,
+
+    #[argh(option, short = 'q')]
+    #[argh(default = "StorageDevice::Ahci")]
+    #[argh(description = "boot device")]
+    storage: StorageDevice,
 }
 
-fn main() {
-    let img_path = build_img();
+#[derive(FromStr)]
+enum StorageDevice {
+    Ahci,
+    Nvme,
+}
+
+fn main() -> Result<()> {
+    let img_path = build_img()?;
     let args: Args = argh::from_env();
 
-    if args.boot {
-        let mut cmd = Command::new("qemu-system-x86_64");
-
-        let ovmf_path = Prebuilt::fetch(Source::LATEST, "target/ovmf")
-            .expect("failed to update prebuilt")
-            .get_file(Arch::X64, FileType::Code);
-        let ovmf_config = format!("if=pflash,format=raw,file={}", ovmf_path.display());
-
-        cmd.arg("-machine").arg("q35");
-        cmd.arg("-drive").arg(ovmf_config);
-        cmd.arg("-m").arg("256m");
-        cmd.arg("-smp").arg(format!("cores={}", args.cores));
-        cmd.arg("-cpu").arg("qemu64,+x2apic");
-
-        if let Some(backend) = match std::env::consts::OS {
-            "linux" => Some("pa"),
-            "macos" => Some("coreaudio"),
-            "windows" => Some("dsound"),
-            _ => None,
-        } {
-            cmd.arg("-audiodev").arg(format!("{},id=sound", backend));
-            cmd.arg("-machine").arg("pcspk-audiodev=sound");
-            cmd.arg("-device").arg("intel-hda");
-            cmd.arg("-device").arg("hda-output,audiodev=sound");
-        }
-
-        let drive_config = format!("if=none,format=raw,id=disk1,file={}", img_path.display());
-        cmd.arg("-device").arg("ahci,id=ahci");
-        cmd.arg("-device").arg("ide-hd,drive=disk1,bus=ahci.0");
-        cmd.arg("-drive").arg(drive_config);
-
-        let drive_config = format!("if=none,format=raw,id=disk2,file={}", img_path.display());
-        cmd.arg("-device").arg("nvme,drive=disk2,serial=deadbeef");
-        cmd.arg("-drive").arg(drive_config);
-
-        if args.kvm {
-            cmd.arg("--enable-kvm");
-        }
-        if args.whpx {
-            cmd.arg("-accel").arg("whpx");
-        }
-        if args.serial {
-            cmd.arg("-serial").arg("stdio");
-        }
-
-        let mut child = cmd.spawn().unwrap();
-        child.wait().unwrap();
+    if args.dump {
+        run_dump()?;
     }
+
+    if args.boot {
+        run_qemu(&args, &img_path)?;
+    }
+
+    Ok(())
 }
 
-fn build_img() -> PathBuf {
+fn run_qemu(args: &Args, img_path: &Path) -> Result<()> {
+    let mut cmd = Command::new("qemu-system-x86_64");
+
+    if args.kvm {
+        cmd.arg("--enable-kvm");
+    }
+    if args.whpx {
+        cmd.arg("-accel").arg("whpx");
+    }
+    if args.serial {
+        cmd.arg("-serial").arg("stdio");
+    }
+
+    cmd.arg("-machine").arg("q35");
+    cmd.arg("-m").arg("256m");
+    cmd.arg("-smp").arg(format!("cores={}", args.cores));
+    cmd.arg("-cpu").arg("qemu64,+x2apic");
+
+    if let Some(backend) = match std::env::consts::OS {
+        "linux" => Some("pa"),
+        "macos" => Some("coreaudio"),
+        "windows" => Some("dsound"),
+        _ => None,
+    } {
+        cmd.arg("-audiodev").arg(format!("{},id=sound", backend));
+        cmd.arg("-machine").arg("pcspk-audiodev=sound");
+        cmd.arg("-device").arg("intel-hda");
+        cmd.arg("-device").arg("hda-output,audiodev=sound");
+    }
+
+    match args.storage {
+        StorageDevice::Ahci => {
+            cmd.arg("-device").arg("ahci,id=ahci");
+            cmd.arg("-device").arg("ide-hd,drive=disk,bus=ahci.0");
+        }
+        StorageDevice::Nvme => {
+            cmd.arg("-device").arg("nvme,drive=disk,serial=deadbeef");
+        }
+    }
+
+    let dparam = "if=none,format=raw,id=disk";
+    cmd.args(["-drive", &format!("{dparam},file={}", img_path.display())]);
+
+    let dparam = "if=pflash,format=raw";
+    cmd.args(["-drive", &format!("{dparam},file={}", get_ovmf().display())]);
+
+    cmd.spawn()?.wait()?;
+
+    Ok(())
+}
+
+fn run_dump() -> Result<()> {
+    let file = File::create("TrashOS.txt")?;
+    let mut cmd = Command::new("objdump");
+    cmd.arg("-d").arg(env!("CARGO_BIN_FILE_KERNEL"));
+    cmd.stdout(Stdio::from(file));
+    cmd.spawn()?.wait()?;
+    Ok(())
+}
+
+fn get_ovmf() -> PathBuf {
+    Prebuilt::fetch(Source::LATEST, "target/ovmf")
+        .expect("failed to update prebuilt")
+        .get_file(Arch::X64, FileType::Code)
+}
+
+fn build_img() -> Result<PathBuf> {
     let kernel_path = Path::new(env!("CARGO_BIN_FILE_KERNEL"));
     println!("Building UEFI disk image for kernel at {:#?}", &kernel_path);
 
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let assets_dir = manifest_dir.join("assets");
 
-    let files = BTreeMap::from([
-        ("kernel", kernel_path.to_path_buf()),
-        ("efi/boot/bootx64.efi", assets_dir.join("BOOTX64.EFI")),
-        ("limine.conf", assets_dir.join("limine.conf")),
-    ]);
+    let mut files = BTreeMap::new();
+    files.insert("kernel", kernel_path.to_path_buf());
+    files.insert("efi/boot/bootx64.efi", assets_dir.join("BOOTX64.EFI"));
+    files.insert("limine.conf", assets_dir.join("limine.conf"));
 
-    let img_path = manifest_dir.parent().unwrap().join("TrashOS.img");
+    let img_path = manifest_dir
+        .parent()
+        .ok_or_else(|| anyhow!("Failed to get parent directory"))?
+        .join("TrashOS.img");
     ImageBuilder::build(files, &img_path).expect("Failed to build UEFI disk image");
     println!("Created bootable UEFI disk image at {:#?}", &img_path);
 
-    img_path
+    Ok(img_path)
 }
