@@ -6,7 +6,7 @@ use x86_64::instructions::interrupts;
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     interrupts::without_interrupts(|| {
-        SERIAL.lock().write_fmt(args).unwrap();
+        let _ = SERIAL.lock().write_fmt(args);
     });
 }
 

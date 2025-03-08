@@ -135,5 +135,5 @@ extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error_code: Pag
             log::warn!("Invalid virtual address: {:?}", error);
         }
     }
-    x86_64::instructions::hlt();
+    panic!("Cannot recover from page fault, halting!");
 }

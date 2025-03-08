@@ -54,9 +54,8 @@ pub fn r#yield() -> isize {
 }
 
 pub fn sleep(duration: u64) -> isize {
-    let thread = match SCHEDULER.lock().current().upgrade() {
-        Some(t) => t,
-        None => return -1,
+    let Some(thread) = SCHEDULER.lock().current().upgrade() else {
+        return -1;
     };
 
     TIMER.lock().add(Duration::from_millis(duration));

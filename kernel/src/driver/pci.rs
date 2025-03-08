@@ -7,10 +7,12 @@ use core::{fmt, ptr};
 use device_type::DeviceType;
 use pci_types::*;
 use spin::{Lazy, Mutex};
+use x86_64::structures::paging::PhysFrame;
 use x86_64::{PhysAddr, VirtAddr};
 
 use crate::arch::acpi::ACPI;
 use crate::mem::convert_physical_to_virtual;
+use crate::mem::{KERNEL_PAGE_TABLE, MappingType, MemoryManager};
 
 pub static PCI_DEVICES: Lazy<Mutex<Vec<PciDevice>>> = Lazy::new(|| {
     let pci_access = PciAccess::new(&ACPI.pci_regions);
@@ -19,6 +21,7 @@ pub static PCI_DEVICES: Lazy<Mutex<Vec<PciDevice>>> = Lazy::new(|| {
     Mutex::new(devices)
 });
 
+#[derive(Clone, Copy)]
 pub struct PciAccess<'a>(&'a PciConfigRegions<'a, Global>);
 
 impl<'a> PciAccess<'a> {
@@ -40,7 +43,18 @@ impl<'a> PciAccess<'a> {
             .expect("Invalid PCI address")
             + offset as u64;
 
-        convert_physical_to_virtual(PhysAddr::new(physical_address))
+        let physical_address = PhysAddr::new(physical_address);
+        let virtual_address = convert_physical_to_virtual(physical_address);
+
+        let _ = <MemoryManager>::map_range_to(
+            virtual_address,
+            PhysFrame::containing_address(physical_address),
+            0x1000,
+            MappingType::KernelData.flags(),
+            &mut KERNEL_PAGE_TABLE.lock(),
+        );
+
+        virtual_address
     }
 }
 
@@ -166,12 +180,10 @@ impl<'a> PciResolver<'a> {
                 endpoint_header.capabilities(&self.access).for_each(
                     |capability| match capability {
                         PciCapability::Msi(msi) => {
-                            log::trace!("[TODO]: MSI {:#?}", msi);
+                            msi.set_enabled(true, self.access);
                         }
-                        PciCapability::MsiX(msix) => {
-                            let table_bar = bars[msix.table_bar() as usize].unwrap();
-                            log::trace!("[TODO]: MSI-X {:#?}", msix);
-                            log::trace!("[TODO]: MSI-X Table {:#?}", table_bar);
+                        PciCapability::MsiX(mut msix) => {
+                            msix.set_enabled(true, self.access);
                         }
                         _ => {}
                     },

@@ -6,9 +6,11 @@ use alloc::boxed::Box;
 use core::ptr::NonNull;
 use limine::request::RsdpRequest;
 use spin::Lazy;
-use x86_64::{PhysAddr, VirtAddr};
+use x86_64::PhysAddr;
+use x86_64::structures::paging::PhysFrame;
 
-use crate::mem::{convert_physical_to_virtual, convert_virtual_to_physical};
+use crate::mem::convert_physical_to_virtual;
+use crate::mem::{KERNEL_PAGE_TABLE, MappingType, MemoryManager};
 
 #[used]
 #[unsafe(link_section = ".requests")]
@@ -18,9 +20,8 @@ pub static ACPI: Lazy<Acpi> = Lazy::new(|| {
     let response = RSDP_REQUEST.get_response().unwrap();
 
     let acpi_tables = unsafe {
-        let rsdp_address = VirtAddr::new(response.address() as u64);
-        let physical_address = convert_virtual_to_physical(rsdp_address).as_u64();
-        let acpi_tables = AcpiTables::from_rsdp(AcpiMemHandler, physical_address as usize);
+        let rsdp_address = response.address() as usize;
+        let acpi_tables = AcpiTables::from_rsdp(AcpiMemHandler, rsdp_address);
         Box::leak(Box::new(acpi_tables.unwrap()))
     };
 
@@ -64,6 +65,15 @@ impl AcpiHandler for AcpiMemHandler {
         let virtual_address = {
             let physical_address = PhysAddr::new(physical_address as u64);
             let virtual_address = convert_physical_to_virtual(physical_address);
+
+            let _ = <MemoryManager>::map_range_to(
+                virtual_address,
+                PhysFrame::containing_address(physical_address),
+                size as u64,
+                MappingType::KernelData.flags(),
+                &mut KERNEL_PAGE_TABLE.lock(),
+            );
+
             NonNull::new_unchecked(virtual_address.as_u64() as *mut T)
         };
         PhysicalMapping::new(physical_address, virtual_address, size, size, self.clone())

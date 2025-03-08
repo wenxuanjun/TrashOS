@@ -1,5 +1,5 @@
 use alloc::collections::BTreeMap;
-use limine::request::SmpRequest;
+use limine::request::MpRequest;
 use spin::{Lazy, RwLock};
 
 use super::ap_entry;
@@ -7,10 +7,10 @@ use super::gdt::CpuInfo;
 
 #[used]
 #[unsafe(link_section = ".requests")]
-static SMP_REQUEST: SmpRequest = SmpRequest::new();
+static MP_REQUEST: MpRequest = MpRequest::new();
 
 pub static BSP_LAPIC_ID: Lazy<u32> =
-    Lazy::new(|| SMP_REQUEST.get_response().unwrap().bsp_lapic_id());
+    Lazy::new(|| MP_REQUEST.get_response().unwrap().bsp_lapic_id());
 
 pub static CPUS: Lazy<RwLock<Cpus>> = Lazy::new(|| RwLock::new(Cpus::default()));
 
@@ -45,7 +45,7 @@ impl Cpus {
     }
 
     pub fn init_ap(&mut self) {
-        let response = SMP_REQUEST.get_response().unwrap();
+        let response = MP_REQUEST.get_response().unwrap();
 
         for cpu in response.cpus() {
             if cpu.id != *BSP_LAPIC_ID {

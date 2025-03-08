@@ -19,8 +19,8 @@ pub use hba::HbaMemory;
 pub struct AhciManager(Vec<Ahci>);
 
 pub static AHCI: Lazy<Mutex<AhciManager>> = Lazy::new(|| {
-    let connections = PCI_DEVICES
-        .lock()
+    let devices = PCI_DEVICES.lock();
+    let connections = devices
         .iter()
         .filter(|d| d.device_type == DeviceType::SataController)
         .flat_map(|d| d.bars.get(5).and_then(|b| b.as_ref()))

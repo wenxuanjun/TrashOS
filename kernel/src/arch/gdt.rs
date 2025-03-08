@@ -7,7 +7,7 @@ use x86_64::structures::gdt::{Descriptor, SegmentSelector};
 use x86_64::structures::tss::TaskStateSegment;
 
 pub const DOUBLE_FAULT_IST_INDEX: usize = 0;
-const FAULT_STACK_SIZE: usize = 256;
+pub const FAULT_STACK_SIZE: usize = 256;
 
 pub struct CpuInfo {
     gdt: GlobalDescriptorTable,

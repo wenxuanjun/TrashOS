@@ -3,14 +3,11 @@ members = ["apps/*", "builder", "kernel"]
 resolver = "2"
 default-members = ["builder"]
 
-# [profile.dev]
-# panic = "abort"
-
 [profile.release]
 lto = true
 opt-level = "z"
 panic = "abort"
-strip = true
+codegen-units = 1
 
 [workspace.dependencies]
 std = { path = "apps/std" }

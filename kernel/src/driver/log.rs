@@ -2,9 +2,8 @@ use log::{Level, Record, set_logger, set_max_level};
 use log::{LevelFilter, Log, Metadata};
 
 pub fn init() {
-    static LOGGER: Logger = Logger;
-    set_logger(&LOGGER).unwrap();
-    set_max_level(LevelFilter::Debug);
+    set_logger(&Logger).unwrap();
+    set_max_level(LevelFilter::Trace);
 }
 
 macro_rules! log_output {
@@ -33,7 +32,7 @@ impl Logger {
             Level::Warn => "33",
             Level::Info => "32",
             Level::Debug => "34",
-            Level::Trace => "36",
+            Level::Trace => "35",
         };
 
         if with_location {
@@ -53,7 +52,7 @@ impl Log for Logger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
-            let with_location = matches!(record.level(), Level::Debug | Level::Trace);
+            let with_location = matches!(record.level(), Level::Debug);
             self.log_message(record, with_location);
         }
     }

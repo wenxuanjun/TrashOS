@@ -12,6 +12,7 @@ PHDRS
     text    PT_LOAD;
     rodata  PT_LOAD;
     data    PT_LOAD;
+    dynamic PT_DYNAMIC;
 }
 
 SECTIONS
@@ -34,9 +35,6 @@ SECTIONS
         *(.rodata .rodata.*)
     } :rodata
 
-    /* Move to the next memory page for .data */
-    . = ALIGN(CONSTANT(MAXPAGESIZE));
-
     . = ALIGN(8);
     PROVIDE(__eh_frame = .);
     .eh_frame : { KEEP (*(.eh_frame)) *(.eh_frame.*) }
@@ -53,6 +51,11 @@ SECTIONS
         KEEP(*(.requests))
         KEEP(*(.requests_end_marker))
     } :data
+
+    /* Dynamic section for relocations, both in its own PHDR and inside data PHDR */
+    .dynamic : {
+        *(.dynamic)
+    } :data :dynamic
 
     /* NOTE: .bss needs to be the last thing mapped to :data, otherwise lots of */
     /* unnecessary zeros will be written to the binary. */

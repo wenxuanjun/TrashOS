@@ -6,17 +6,19 @@ use derive_more::Deref;
 use spin::{Lazy, Mutex};
 use x2apic::lapic::{LocalApic, LocalApicBuilder, TimerMode};
 use x86_64::PhysAddr;
+use x86_64::structures::paging::PhysFrame;
 
 use crate::arch::acpi::ACPI;
 use crate::arch::interrupts::InterruptIndex;
 use crate::driver::hpet::HPET;
 use crate::mem::convert_physical_to_virtual;
+use crate::mem::{KERNEL_PAGE_TABLE, MappingType, MemoryManager};
 
 const TIMER_FREQUENCY_HZ: u32 = 200;
 const TIMER_CALIBRATION_ITERATION: u32 = 50;
 
 pub static APIC_INIT: AtomicBool = AtomicBool::new(false);
-pub static CALIBRATED_TIMER_INITIAL: AtomicU32 = AtomicU32::new(0);
+pub static LAPIC_TIMER_INITIAL: AtomicU32 = AtomicU32::new(0);
 
 #[derive(Deref)]
 pub struct LockedLocalApic(Mutex<LocalApic>);
@@ -27,6 +29,15 @@ unsafe impl Sync for LockedLocalApic {}
 pub static LAPIC: Lazy<LockedLocalApic> = Lazy::new(|| unsafe {
     let physical_address = PhysAddr::new(ACPI.apic.local_apic_address);
     let virtual_address = convert_physical_to_virtual(physical_address);
+
+    <MemoryManager>::map_range_to(
+        virtual_address,
+        PhysFrame::containing_address(physical_address),
+        0x1000,
+        MappingType::KernelData.flags(),
+        &mut KERNEL_PAGE_TABLE.lock(),
+    )
+    .unwrap();
 
     let mut lapic = LocalApicBuilder::new()
         .timer_vector(InterruptIndex::Timer as usize)
@@ -71,5 +82,5 @@ pub unsafe fn calibrate_timer() {
 
     lapic.set_timer_mode(TimerMode::Periodic);
     lapic.set_timer_initial(calibrated_timer_initial);
-    CALIBRATED_TIMER_INITIAL.store(calibrated_timer_initial, Ordering::SeqCst);
+    LAPIC_TIMER_INITIAL.store(calibrated_timer_initial, Ordering::Relaxed);
 }

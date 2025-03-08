@@ -14,16 +14,9 @@ pub fn init() {
     SFMask::write(RFlags::INTERRUPT_FLAG);
     LStar::write(VirtAddr::from_ptr(syscall_handler as *const ()));
 
-    let (code_selector, data_selector) = Selectors::get_kernel_segments();
-    let (user_code_selector, user_data_selector) = Selectors::get_user_segments();
-
-    Star::write(
-        user_code_selector,
-        user_data_selector,
-        code_selector,
-        data_selector,
-    )
-    .unwrap();
+    let (kernel_code, kernel_data) = Selectors::get_kernel_segments();
+    let (user_code, user_data) = Selectors::get_user_segments();
+    Star::write(user_code, user_data, kernel_code, kernel_data).unwrap();
 
     unsafe {
         Efer::write(Efer::read() | EferFlags::SYSTEM_CALL_EXTENSIONS);

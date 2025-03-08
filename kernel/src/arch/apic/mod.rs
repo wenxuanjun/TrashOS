@@ -5,7 +5,7 @@ mod lapic;
 
 use super::interrupts::InterruptIndex;
 pub use ioapic::{IrqVector, ioapic_add_entry};
-pub use lapic::{APIC_INIT, CALIBRATED_TIMER_INITIAL, LAPIC};
+pub use lapic::{APIC_INIT, LAPIC, LAPIC_TIMER_INITIAL};
 pub use lapic::{disable_pic, end_of_interrupt};
 
 pub fn init() {

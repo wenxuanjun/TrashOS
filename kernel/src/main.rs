@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-use kernel::driver::ahci::AHCI;
 use kernel::driver::hpet::HPET;
 use kernel::driver::rtc::RtcDateTime;
 use kernel::driver::term::terminal_thread;
@@ -18,10 +17,6 @@ static BASE_REVISION: BaseRevision = BaseRevision::new();
 extern "C" fn kmain() -> ! {
     catch_unwind(|| kernel::init()).unwrap();
     log::info!("Boot time: {:?}", HPET.elapsed());
-
-    let ahci_manager = AHCI.lock();
-    log::info!("AHCI disk count: {}", ahci_manager.len());
-
     Thread::new_kernel_thread(terminal_thread);
 
     (40..=47).for_each(|index| kernel::print!("\x1b[{}m   \x1b[0m", index));

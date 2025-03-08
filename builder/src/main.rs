@@ -15,9 +15,8 @@ struct Args {
     #[argh(description = "boot the constructed image")]
     boot: bool,
 
-    #[argh(option, short = 'd')]
-    #[argh(default = "false")]
-    #[argh(description = "boot device")]
+    #[argh(switch, short = 'd')]
+    #[argh(description = "dump kernel assembly")]
     dump: bool,
 
     #[argh(switch, short = 'k')]
@@ -67,6 +66,11 @@ fn main() -> Result<()> {
 fn run_qemu(args: &Args, img_path: &Path) -> Result<()> {
     let mut cmd = Command::new("qemu-system-x86_64");
 
+    cmd.arg("-machine").arg("q35");
+    cmd.arg("-m").arg("256m");
+    cmd.arg("-smp").arg(format!("cores={}", args.cores));
+    cmd.arg("-cpu").arg("qemu64,+x2apic");
+
     if args.kvm {
         cmd.arg("--enable-kvm");
     }
@@ -76,11 +80,6 @@ fn run_qemu(args: &Args, img_path: &Path) -> Result<()> {
     if args.serial {
         cmd.arg("-serial").arg("stdio");
     }
-
-    cmd.arg("-machine").arg("q35");
-    cmd.arg("-m").arg("256m");
-    cmd.arg("-smp").arg(format!("cores={}", args.cores));
-    cmd.arg("-cpu").arg("qemu64,+x2apic");
 
     if let Some(backend) = match std::env::consts::OS {
         "linux" => Some("pa"),
@@ -104,14 +103,13 @@ fn run_qemu(args: &Args, img_path: &Path) -> Result<()> {
         }
     }
 
-    let dparam = "if=none,format=raw,id=disk";
-    cmd.args(["-drive", &format!("{dparam},file={}", img_path.display())]);
+    let param = "if=none,format=raw,id=disk";
+    cmd.args(["-drive", &format!("{param},file={}", img_path.display())]);
 
-    let dparam = "if=pflash,format=raw";
-    cmd.args(["-drive", &format!("{dparam},file={}", get_ovmf().display())]);
+    let param = "if=pflash,format=raw";
+    cmd.args(["-drive", &format!("{param},file={}", get_ovmf().display())]);
 
     cmd.spawn()?.wait()?;
-
     Ok(())
 }
 
@@ -119,8 +117,7 @@ fn run_dump() -> Result<()> {
     let file = File::create("TrashOS.txt")?;
     let mut cmd = Command::new("objdump");
     cmd.arg("-d").arg(env!("CARGO_BIN_FILE_KERNEL"));
-    cmd.stdout(Stdio::from(file));
-    cmd.spawn()?.wait()?;
+    cmd.stdout(Stdio::from(file)).spawn()?.wait()?;
     Ok(())
 }
 

@@ -1,3 +1,4 @@
+use alloc::string::ToString;
 use core::fmt::{self, Write};
 
 use super::service::TERMINAL_BUFFER;
@@ -6,9 +7,8 @@ pub struct TerminalWriter;
 
 impl Write for TerminalWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        s.chars()
-            .try_for_each(|c| TERMINAL_BUFFER.push(c))
-            .map_err(|_| fmt::Error)
+        TERMINAL_BUFFER.force_push(s.to_string());
+        Ok(())
     }
 }
 

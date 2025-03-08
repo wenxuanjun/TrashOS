@@ -35,7 +35,7 @@ impl ExtendedPageTable for OffsetPageTable<'_> {
     }
 
     unsafe fn deep_copy(&self) -> OffsetPageTable<'static> {
-        let source_table = &*(self.level_4_table());
+        let source_table = self.level_4_table();
 
         let mut frame_allocator = FRAME_ALLOCATOR.lock();
         let (mut new_page_table, _) = new_from_allocate(&mut frame_allocator);

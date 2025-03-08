@@ -4,14 +4,25 @@ use core::time::Duration;
 use core::{fmt, ptr};
 use spin::Lazy;
 use x86_64::PhysAddr;
+use x86_64::structures::paging::PhysFrame;
 
 use crate::arch::acpi::ACPI;
 use crate::arch::apic::IrqVector;
 use crate::mem::convert_physical_to_virtual;
+use crate::mem::{KERNEL_PAGE_TABLE, MappingType, MemoryManager};
 
 pub static HPET: Lazy<Hpet> = Lazy::new(|| {
     let physical_address = PhysAddr::new(ACPI.hpet_info.base_address as u64);
     let virtual_address = convert_physical_to_virtual(physical_address);
+
+    <MemoryManager>::map_range_to(
+        virtual_address,
+        PhysFrame::containing_address(physical_address),
+        0x1000,
+        MappingType::KernelData.flags(),
+        &mut KERNEL_PAGE_TABLE.lock(),
+    )
+    .unwrap();
 
     let hpet = Hpet::new(virtual_address.as_u64());
     log::info!("HPET: {}", hpet);
@@ -29,9 +40,7 @@ impl Display for Hpet {
         write!(
             f,
             "addr={:#x}, timers={}, tick={}fms",
-            self.base_address,
-            self.num_timers,
-            self.fms_per_tick,
+            self.base_address, self.num_timers, self.fms_per_tick,
         )
     }
 }

@@ -8,8 +8,8 @@ use x86_64::PhysAddr;
 use x86_64::structures::paging::PhysFrame;
 
 use super::pci::PCI_DEVICES;
-use crate::mem::convert_physical_to_virtual;
-use crate::mem::{DmaManager, KERNEL_PAGE_TABLE, MappingType, MemoryManager};
+use crate::mem::{convert_physical_to_virtual, DmaManager};
+use crate::mem::{KERNEL_PAGE_TABLE, MappingType, MemoryManager};
 
 pub static NVME: Lazy<Mutex<NvmeManager>> = Lazy::new(|| {
     let devices = PCI_DEVICES.lock();
