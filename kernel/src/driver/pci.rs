@@ -21,7 +21,6 @@ pub static PCI_DEVICES: Lazy<Mutex<Vec<PciDevice>>> = Lazy::new(|| {
     Mutex::new(devices)
 });
 
-#[derive(Clone, Copy)]
 pub struct PciAccess<'a>(&'a PciConfigRegions<'a, Global>);
 
 impl<'a> PciAccess<'a> {
@@ -180,10 +179,10 @@ impl<'a> PciResolver<'a> {
                 endpoint_header.capabilities(&self.access).for_each(
                     |capability| match capability {
                         PciCapability::Msi(msi) => {
-                            msi.set_enabled(true, self.access);
+                            msi.set_enabled(true, &self.access);
                         }
                         PciCapability::MsiX(mut msix) => {
-                            msix.set_enabled(true, self.access);
+                            msix.set_enabled(true, &self.access);
                         }
                         _ => {}
                     },

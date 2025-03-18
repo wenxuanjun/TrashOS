@@ -4,10 +4,12 @@ resolver = "2"
 default-members = ["builder"]
 
 [profile.release]
-lto = true
-opt-level = "z"
+lto = "thin"
 panic = "abort"
-codegen-units = 1
+
+[profile.release.package.kernel]
+opt-level = "z"
+strip = true
 
 [workspace.dependencies]
 std = { path = "apps/std" }

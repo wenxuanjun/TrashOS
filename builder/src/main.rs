@@ -1,24 +1,13 @@
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use argh::FromArgs;
-use builder::ImageBuilder;
 use derive_more::FromStr;
 use ovmf_prebuilt::{Arch, FileType, Prebuilt, Source};
-use std::collections::BTreeMap;
-use std::fs::File;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::path::Path;
+use std::process::Command;
 
 #[derive(FromArgs)]
-#[argh(description = "TrashOS bootloader and kernel builder")]
+#[argh(description = "TrashOS kernel builder and runner")]
 struct Args {
-    #[argh(switch, short = 'b')]
-    #[argh(description = "boot the constructed image")]
-    boot: bool,
-
-    #[argh(switch, short = 'd')]
-    #[argh(description = "dump kernel assembly")]
-    dump: bool,
-
     #[argh(switch, short = 'k')]
     #[argh(description = "use KVM acceleration")]
     kvm: bool,
@@ -37,33 +26,23 @@ struct Args {
     serial: bool,
 
     #[argh(option, short = 'q')]
-    #[argh(default = "StorageDevice::Ahci")]
+    #[argh(default = "StorageDevice::default()")]
     #[argh(description = "boot device")]
     storage: StorageDevice,
 }
 
-#[derive(FromStr)]
+#[derive(Default, FromStr)]
 enum StorageDevice {
-    Ahci,
+    #[default]
     Nvme,
+    Ahci,
 }
 
 fn main() -> Result<()> {
-    let img_path = build_img()?;
     let args: Args = argh::from_env();
+    let img_path = Path::new(env!("IMG_PATH"));
+    println!("Image path: {:?}", img_path);
 
-    if args.dump {
-        run_dump()?;
-    }
-
-    if args.boot {
-        run_qemu(&args, &img_path)?;
-    }
-
-    Ok(())
-}
-
-fn run_qemu(args: &Args, img_path: &Path) -> Result<()> {
     let mut cmd = Command::new("qemu-system-x86_64");
 
     cmd.arg("-machine").arg("q35");
@@ -107,44 +86,12 @@ fn run_qemu(args: &Args, img_path: &Path) -> Result<()> {
     cmd.args(["-drive", &format!("{param},file={}", img_path.display())]);
 
     let param = "if=pflash,format=raw";
-    cmd.args(["-drive", &format!("{param},file={}", get_ovmf().display())]);
+    let ovmf_path = Prebuilt::fetch(Source::LATEST, "target/ovmf")
+        .expect("failed to update prebuilt")
+        .get_file(Arch::X64, FileType::Code);
+    cmd.args(["-drive", &format!("{param},file={}", ovmf_path.display())]);
 
     cmd.spawn()?.wait()?;
+
     Ok(())
-}
-
-fn run_dump() -> Result<()> {
-    let file = File::create("TrashOS.txt")?;
-    let mut cmd = Command::new("objdump");
-    cmd.arg("-d").arg(env!("CARGO_BIN_FILE_KERNEL"));
-    cmd.stdout(Stdio::from(file)).spawn()?.wait()?;
-    Ok(())
-}
-
-fn get_ovmf() -> PathBuf {
-    Prebuilt::fetch(Source::LATEST, "target/ovmf")
-        .expect("failed to update prebuilt")
-        .get_file(Arch::X64, FileType::Code)
-}
-
-fn build_img() -> Result<PathBuf> {
-    let kernel_path = Path::new(env!("CARGO_BIN_FILE_KERNEL"));
-    println!("Building UEFI disk image for kernel at {:#?}", &kernel_path);
-
-    let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let assets_dir = manifest_dir.join("assets");
-
-    let mut files = BTreeMap::new();
-    files.insert("kernel", kernel_path.to_path_buf());
-    files.insert("efi/boot/bootx64.efi", assets_dir.join("BOOTX64.EFI"));
-    files.insert("limine.conf", assets_dir.join("limine.conf"));
-
-    let img_path = manifest_dir
-        .parent()
-        .ok_or_else(|| anyhow!("Failed to get parent directory"))?
-        .join("TrashOS.img");
-    ImageBuilder::build(files, &img_path).expect("Failed to build UEFI disk image");
-    println!("Created bootable UEFI disk image at {:#?}", &img_path);
-
-    Ok(img_path)
 }

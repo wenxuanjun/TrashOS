@@ -14,7 +14,7 @@ use crate::driver::{display::Display, speaker::SPEAKER};
 use crate::syscall::r#yield;
 
 const SCANCODE_QUEUE_SIZE: usize = 128;
-const TERMINAL_BUFFER_SIZE: usize = 1024;
+const TERMINAL_BUFFER_SIZE: usize = 4096;
 
 pub static SCANCODE_QUEUE: Lazy<ArrayQueue<u8>> =
     Lazy::new(|| ArrayQueue::new(SCANCODE_QUEUE_SIZE));

@@ -27,16 +27,14 @@ fn panic(info: &PanicInfo) -> ! {
     log::error!("{}", info);
     log::error!("Backtrace:");
 
-    struct Data {
-        counter: usize,
-    }
+    struct Counter(usize);
 
     extern "C" fn callback(
         unwind_ctx: &UnwindContext<'_>,
         arg: *mut core::ffi::c_void,
     ) -> UnwindReasonCode {
-        let data = unsafe { &mut *(arg as *mut Data) };
         let address = _Unwind_GetIP(unwind_ctx);
+        let counter = unsafe { &mut *(arg as *mut Counter) };
 
         let symbol = KERNEL_FILE
             .symbols()
@@ -49,13 +47,13 @@ fn panic(info: &PanicInfo) -> ! {
             .map(|name| format!("{:#}", demangle(name)))
             .unwrap_or("<unknown>".into());
 
-        log::error!("{:4}:{:#19x} - {}", data.counter, address, symbol);
-        data.counter += 1;
+        log::error!("{:4}:{:#19x} - {}", counter.0, address, symbol);
+        counter.0 += 1;
         UnwindReasonCode::NO_REASON
     }
 
-    let mut data = Data { counter: 0 };
-    _Unwind_Backtrace(callback, addr_of_mut!(data) as _);
+    let mut counter = Counter(0);
+    _Unwind_Backtrace(callback, addr_of_mut!(counter) as _);
 
     if info.can_unwind() {
         struct NoPayload;

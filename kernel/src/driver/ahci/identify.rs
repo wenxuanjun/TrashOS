@@ -2,7 +2,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 #[repr(C)]
-pub struct SataIdentify {
+pub struct Identify {
     _1: [u16; 10],
     pub serial_number: [u8; 20],
     _2: [u16; 3],
@@ -20,16 +20,14 @@ pub struct StorageInfo {
     pub lba48_sectors: u64,
 }
 
-impl From<&SataIdentify> for StorageInfo {
-    fn from(info: &SataIdentify) -> Self {
+impl From<&Identify> for StorageInfo {
+    fn from(info: &Identify) -> Self {
         let parse = |input: &[u8]| -> String {
-            let corrected = input
+            let str = input
                 .chunks(2)
-                .flat_map(|chunk| chunk.iter().rev())
-                .copied()
-                .collect::<Vec<u8>>();
-
-            String::from_utf8_lossy(&corrected).trim_end().to_string()
+                .flat_map(|c| c.iter().rev().copied())
+                .collect::<Vec<_>>();
+            String::from_utf8_lossy(&str).trim().to_string()
         };
 
         Self {

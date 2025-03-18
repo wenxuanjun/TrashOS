@@ -16,10 +16,10 @@ Build the apps first (release mode is required):
 $ cargo build --package apps --release
 ```
 
-Then you can run the builder to generate the disk image:
+Then you build run the builder to generate the disk image:
 
 ```bash
-$ cargo run
+$ cargo build
 ```
 
 The disk image will be located at the root of the project directory.
@@ -35,7 +35,7 @@ $ cargo run -- --help
 For example, to build optimized kernel and boot with KVM enabled and redirect the serial output to the terminal:
 
 ```bash
-$ cargo run --release -- --boot --kvm --serial
+$ cargo run --release -- --kvm --serial
 ```
 
 ### Planned features

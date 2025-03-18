@@ -16,8 +16,6 @@ pub static IOAPIC: Lazy<Mutex<IoApic>> = Lazy::new(|| unsafe {
     let physical_address = PhysAddr::new(ACPI.apic.io_apics[0].address as u64);
     let virtual_address = convert_physical_to_virtual(physical_address);
 
-    log::debug!("IoAPIC address: {:#x}", virtual_address.as_u64());
-
     <MemoryManager>::map_range_to(
         virtual_address,
         PhysFrame::containing_address(physical_address),

@@ -4,7 +4,7 @@ use x86_64::VirtAddr;
 
 use super::cmd::{CommandHeader, CommandTable, FisRegH2D};
 use super::hba::{HbaMemory, HbaPort};
-use super::identify::{SataIdentify, StorageInfo};
+use super::identify::{Identify, StorageInfo};
 use crate::mem::DmaManager;
 
 const BLOCK_SIZE: usize = 512;
@@ -41,7 +41,7 @@ impl Ahci {
     pub fn identity(&mut self) -> StorageInfo {
         unsafe {
             self.execute_command(CMD_IDENTIFY_DEVICE, 0);
-            (&*(self.data.as_ptr() as *const SataIdentify)).into()
+            (&*(self.data.as_ptr() as *const Identify)).into()
         }
     }
 

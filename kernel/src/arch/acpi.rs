@@ -20,7 +20,7 @@ pub static ACPI: Lazy<Acpi> = Lazy::new(|| {
     let response = RSDP_REQUEST.get_response().unwrap();
 
     let acpi_tables = unsafe {
-        let rsdp_address = response.address() as usize;
+        let rsdp_address = response.address();
         let acpi_tables = AcpiTables::from_rsdp(AcpiMemHandler, rsdp_address);
         Box::leak(Box::new(acpi_tables.unwrap()))
     };

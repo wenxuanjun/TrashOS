@@ -5,17 +5,20 @@ version = "0.1.0"
 
 [dependencies]
 argh = "0.1.13"
-anyhow = "1.0.95"
-tempfile = "3.15.0"
-gpt = "4.0.0"
-ovmf-prebuilt = "0.2.1"
-fatfs = "0.3.6"
+anyhow = "1.0.97"
+ovmf-prebuilt = "0.2.2"
 
 [dependencies.derive_more]
 version = "2.0.1"
 features = ["full"]
 
-[dependencies.kernel]
+[build-dependencies]
+anyhow = "1.0.97"
+tempfile = "3.19.0"
+gpt = "4.1.0"
+fatfs = "0.3.6"
+
+[build-dependencies.kernel]
 path = "../kernel"
 artifact = "bin"
 target = "x86_64-unknown-none"

@@ -15,9 +15,10 @@ static BASE_REVISION: BaseRevision = BaseRevision::new();
 
 #[unsafe(no_mangle)]
 extern "C" fn kmain() -> ! {
-    catch_unwind(|| kernel::init()).unwrap();
-    log::info!("Boot time: {:?}", HPET.elapsed());
+    catch_unwind(kernel::init).unwrap();
     Thread::new_kernel_thread(terminal_thread);
+    log::info!("Boot time: {:?}", HPET.elapsed());
+    kernel::driver::nvme::nvme_test();
 
     (40..=47).for_each(|index| kernel::print!("\x1b[{}m   \x1b[0m", index));
     kernel::println!();

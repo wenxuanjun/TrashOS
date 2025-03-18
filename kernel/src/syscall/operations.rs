@@ -43,18 +43,15 @@ pub fn mmap(address: usize, length: usize) -> isize {
 
 pub fn r#yield() -> isize {
     unsafe {
-        asm!(
-            "int {interrupt_number}",
-            interrupt_number =
-            const InterruptIndex::Timer as u8
-        );
+        asm!("int {}", const InterruptIndex::Timer as u8);
     }
 
     0
 }
 
 pub fn sleep(duration: u64) -> isize {
-    let Some(thread) = SCHEDULER.lock().current().upgrade() else {
+    let thread = SCHEDULER.lock().current();
+    let Some(thread) = thread.upgrade() else {
         return -1;
     };
 
@@ -65,11 +62,10 @@ pub fn sleep(duration: u64) -> isize {
 }
 
 pub fn exit() -> isize {
-    let process = SCHEDULER
-        .lock()
-        .current()
+    let thread = SCHEDULER.lock().current();
+    let process = thread
         .upgrade()
-        .and_then(|thread| thread.read().process.upgrade());
+        .and_then(|t| t.read().process.upgrade());
 
     if let Some(process) = process {
         let mut scheduler = SCHEDULER.lock();
