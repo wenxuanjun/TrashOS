@@ -1,6 +1,5 @@
 use anyhow::Result;
-use argh::FromArgs;
-use derive_more::FromStr;
+use argh::{FromArgValue, FromArgs};
 use ovmf_prebuilt::{Arch, FileType, Prebuilt, Source};
 use std::path::Path;
 use std::process::Command;
@@ -25,17 +24,29 @@ struct Args {
     #[argh(description = "redirect serial to stdio")]
     serial: bool,
 
-    #[argh(option, short = 'q')]
-    #[argh(default = "StorageDevice::default()")]
+    #[argh(option, short = 'd')]
+    #[argh(default = "StorageDevice::Nvme")]
     #[argh(description = "boot device")]
     storage: StorageDevice,
 }
 
-#[derive(Default, FromStr)]
+#[derive(Debug, Default)]
 enum StorageDevice {
     #[default]
     Nvme,
     Ahci,
+    Virtio,
+}
+
+impl FromArgValue for StorageDevice {
+    fn from_arg_value(value: &str) -> Result<Self, String> {
+        match value {
+            "nvme" => Ok(StorageDevice::Nvme),
+            "ahci" => Ok(StorageDevice::Ahci),
+            "virtio" => Ok(StorageDevice::Virtio),
+            _ => Err(format!("Invalid storage device: {}", value)),
+        }
+    }
 }
 
 fn main() -> Result<()> {
@@ -44,7 +55,6 @@ fn main() -> Result<()> {
     println!("Image path: {:?}", img_path);
 
     let mut cmd = Command::new("qemu-system-x86_64");
-
     cmd.arg("-machine").arg("q35");
     cmd.arg("-m").arg("256m");
     cmd.arg("-smp").arg(format!("cores={}", args.cores));
@@ -80,6 +90,9 @@ fn main() -> Result<()> {
         StorageDevice::Nvme => {
             cmd.arg("-device").arg("nvme,drive=disk,serial=deadbeef");
         }
+        StorageDevice::Virtio => {
+            cmd.arg("-device").arg("virtio-blk-pci,drive=disk");
+        }
     }
 
     let param = "if=none,format=raw,id=disk";
@@ -92,6 +105,5 @@ fn main() -> Result<()> {
     cmd.args(["-drive", &format!("{param},file={}", ovmf_path.display())]);
 
     cmd.spawn()?.wait()?;
-
     Ok(())
 }

@@ -15,8 +15,8 @@ use crate::mem::convert_physical_to_virtual;
 use crate::mem::{KERNEL_PAGE_TABLE, MappingType, MemoryManager};
 
 pub static PCI_DEVICES: Lazy<Mutex<Vec<PciDevice>>> = Lazy::new(|| {
-    let pci_access = PciAccess::new(&ACPI.pci_regions);
-    let devices = PciResolver::resolve(pci_access);
+    let access = PciAccess::new(&ACPI.pci_regions);
+    let devices = PciResolver::resolve(access);
     devices.iter().for_each(|device| log::info!("{}", device));
     Mutex::new(devices)
 });
@@ -45,13 +45,14 @@ impl<'a> PciAccess<'a> {
         let physical_address = PhysAddr::new(physical_address);
         let virtual_address = convert_physical_to_virtual(physical_address);
 
-        let _ = <MemoryManager>::map_range_to(
+        <MemoryManager>::map_range_to(
             virtual_address,
             PhysFrame::containing_address(physical_address),
             0x1000,
             MappingType::KernelData.flags(),
             &mut KERNEL_PAGE_TABLE.lock(),
-        );
+        )
+        .unwrap();
 
         virtual_address
     }

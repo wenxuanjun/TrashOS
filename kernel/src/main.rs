@@ -18,7 +18,6 @@ extern "C" fn kmain() -> ! {
     catch_unwind(kernel::init).unwrap();
     Thread::new_kernel_thread(terminal_thread);
     log::info!("Boot time: {:?}", HPET.elapsed());
-    kernel::driver::nvme::nvme_test();
 
     (40..=47).for_each(|index| kernel::print!("\x1b[{}m   \x1b[0m", index));
     kernel::println!();
@@ -32,6 +31,8 @@ extern "C" fn kmain() -> ! {
     let counter_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/counter");
     Process::create("Hello", hello_raw_elf);
     Process::create("Number", counter_raw_elf);
+
+    kernel::io::test_manager().unwrap();
 
     loop {
         x86_64::instructions::hlt();

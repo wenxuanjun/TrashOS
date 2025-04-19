@@ -8,4 +8,5 @@ forced-target = "x86_64-unknown-none"
 
 [dependencies]
 talc = "4.4.2"
-spin = "0.9.8"
+spin = "0.10.0"
+pastey = "0.1.0"

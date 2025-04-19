@@ -94,7 +94,7 @@ impl ProcessBinary {
             .expect("Failed to allocate memory for ELF segment");
 
             if let Ok(data) = segment.data() {
-                page_table.write_to_mapped_address(data, address);
+                unsafe { page_table.write_to_mapped(data, address) };
             }
         }
     }
@@ -103,7 +103,7 @@ impl ProcessBinary {
 impl Drop for Process {
     fn drop(&mut self) {
         unsafe {
-            self.page_table.free_user_page_table();
+            self.page_table.free_user_pages();
             log::trace!("Process {} dropped", self.id.0);
             log::trace!("Memory usage: {}", FRAME_ALLOCATOR.lock());
         }

@@ -4,10 +4,10 @@ use x86_64::VirtAddr;
 
 use super::cmd::{CommandHeader, CommandTable, FisRegH2D};
 use super::hba::{HbaMemory, HbaPort};
-use super::identify::{Identify, StorageInfo};
+use super::identify::{Identify, IdentifyData};
 use crate::mem::DmaManager;
 
-const BLOCK_SIZE: usize = 512;
+pub const BLOCK_SIZE: usize = 512;
 const FIS_TYPE_REG_H2D: u8 = 0x27;
 const CMD_READ_DMA_EXT: u8 = 0x25;
 const CMD_WRITE_DMA_EXT: u8 = 0x35;
@@ -38,7 +38,7 @@ impl Ahci {
             .collect()
     }
 
-    pub fn identity(&mut self) -> StorageInfo {
+    pub fn identity(&mut self) -> IdentifyData {
         unsafe {
             self.execute_command(CMD_IDENTIFY_DEVICE, 0);
             (&*(self.data.as_ptr() as *const Identify)).into()

@@ -11,7 +11,7 @@ mod kernel_heap;
 mod manager;
 mod page_table;
 
-pub use dma::DmaManager;
+pub use dma::{AlignedBuffer, DmaManager};
 pub use frame::BitmapFrameAllocator;
 pub use kernel_heap::init_heap;
 pub use manager::{MappingType, MemoryManager};

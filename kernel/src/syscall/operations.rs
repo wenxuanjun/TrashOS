@@ -63,11 +63,10 @@ pub fn sleep(duration: u64) -> isize {
 
 pub fn exit() -> isize {
     let thread = SCHEDULER.lock().current();
-    let process = thread
+    if let Some(process) = thread
         .upgrade()
-        .and_then(|t| t.read().process.upgrade());
-
-    if let Some(process) = process {
+        .and_then(|thread| thread.read().process.upgrade())
+    {
         let mut scheduler = SCHEDULER.lock();
         for thread in process.read().threads.iter() {
             scheduler.remove(Arc::downgrade(thread));

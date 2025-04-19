@@ -11,6 +11,7 @@
 
 pub mod arch;
 pub mod driver;
+pub mod io;
 pub mod mem;
 pub mod syscall;
 pub mod task;
@@ -24,6 +25,7 @@ use spin::Lazy;
 pub fn init() {
     mem::init_heap();
     driver::log::init();
+    Lazy::force(&driver::hpet::HPET);
     arch::smp::CPUS.write().load(*BSP_LAPIC_ID);
     arch::interrupts::IDT.load();
     arch::init_sse();
@@ -32,6 +34,5 @@ pub fn init() {
     driver::mouse::init();
     syscall::init();
     task::scheduler::init();
-    Lazy::force(&driver::pci::PCI_DEVICES);
-    // panic!("A panic test");
+    Lazy::force(&driver::pcie::PCI_DEVICES);
 }

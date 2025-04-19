@@ -10,10 +10,10 @@ Before building, you may need to add target `x86_64-unknown-none` to your Rust t
 $ rustup target add x86_64-unknown-none
 ```
 
-Build the apps first (release mode is required):
+Build the boybox first (release mode is required):
 
 ```bash
-$ cargo build --package apps --release
+$ cargo build --package boybox --release
 ```
 
 Then you build run the builder to generate the disk image:
@@ -52,6 +52,6 @@ $ cargo run --release -- --kvm --serial
 - [ ] Block device abstraction
 - [ ] Filesystem support
 - [ ] Shell
-- [ ] NVMe support
+- [x] NVMe support
 - [ ] Brain Fuck Scheduler
 - [ ] Enlargable & shrinkable heap

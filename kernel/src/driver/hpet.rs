@@ -1,7 +1,6 @@
 use bit_field::BitField;
-use core::fmt::Display;
+use core::ptr;
 use core::time::Duration;
-use core::{fmt, ptr};
 use spin::Lazy;
 use x86_64::PhysAddr;
 use x86_64::structures::paging::PhysFrame;
@@ -24,49 +23,17 @@ pub static HPET: Lazy<Hpet> = Lazy::new(|| {
     )
     .unwrap();
 
-    let hpet = Hpet::new(virtual_address.as_u64());
-    log::info!("HPET: {}", hpet);
-    hpet.enable_all().enable_timer()
+    Hpet::new(virtual_address.as_u64())
 });
 
 pub struct Hpet {
-    base_address: u64,
+    address: u64,
     fms_per_tick: u64,
-    num_timers: u8,
-}
-
-impl Display for Hpet {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "addr={:#x}, timers={}, tick={}fms",
-            self.base_address, self.num_timers, self.fms_per_tick,
-        )
-    }
-}
-
-impl Hpet {
-    pub fn new(base_address: u64) -> Self {
-        let general_ptr = base_address as *const u64;
-        let general_info = unsafe { ptr::read_volatile(general_ptr) };
-
-        let num_timers = general_info.get_bits(8..13) as u8 - 1;
-        let fms_per_tick = general_info.get_bits(32..64);
-
-        let counter_addr = (base_address + 0xf0) as *const u64;
-        unsafe { ptr::write_volatile(counter_addr as *mut u64, 0) };
-
-        Self {
-            base_address,
-            fms_per_tick,
-            num_timers,
-        }
-    }
 }
 
 impl Hpet {
     pub fn ticks(&self) -> u64 {
-        let counter_addr = (self.base_address + 0xf0) as *const u64;
+        let counter_addr = (self.address + 0xf0) as *const u64;
         unsafe { ptr::read_volatile(counter_addr) }
     }
 
@@ -81,26 +48,31 @@ impl Hpet {
     }
 
     pub fn set_timer(&self, value: u64) {
-        let comparator_addr = (self.base_address + 0x108) as *mut u64;
+        let comparator_addr = (self.address + 0x108) as *mut u64;
         unsafe { ptr::write_volatile(comparator_addr, value) };
     }
 }
 
 impl Hpet {
-    fn enable_all(self) -> Self {
+    pub fn new(address: u64) -> Self {
+        let general_ptr = address as *const u64;
+        let general_info = unsafe { ptr::read_volatile(general_ptr) };
+
+        let fms_per_tick = general_info.get_bits(32..64);
+        let counter_addr = (address + 0xf0) as *const u64;
+        unsafe { ptr::write_volatile(counter_addr as *mut u64, 0) };
+
+        let hpet = Self {
+            address,
+            fms_per_tick,
+        };
+
         unsafe {
-            let enable_cnf_addr = (self.base_address + 0x10) as *mut u64;
+            let enable_cnf_addr = (hpet.address + 0x10) as *mut u64;
             let old_cnf = ptr::read_volatile(enable_cnf_addr);
             ptr::write_volatile(enable_cnf_addr, old_cnf | 1);
-        }
 
-        self
-    }
-
-    fn enable_timer(self) -> Self {
-        let timer_config_addr = (self.base_address + 0x100) as *mut u64;
-
-        unsafe {
+            let timer_config_addr = (hpet.address + 0x100) as *mut u64;
             let old_config = ptr::read_volatile(timer_config_addr);
             let route_cap = old_config.get_bits(32..63);
 
@@ -113,6 +85,6 @@ impl Hpet {
             ptr::write_volatile(timer_config_addr, timer_config);
         }
 
-        self
+        hpet
     }
 }

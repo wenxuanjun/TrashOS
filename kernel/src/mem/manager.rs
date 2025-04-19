@@ -47,7 +47,7 @@ impl<S: PageSize> MemoryManager<S> {
         OffsetPageTable<'static>: Mapper<S>,
         BitmapFrameAllocator: FrameAllocator<S>,
     {
-        interrupts::without_interrupts(|| {
+        interrupts::without_interrupts(|| unsafe {
             let page_range = {
                 let start_page = Page::containing_address(start_address);
                 let end_page = Page::containing_address(start_address + length - 1u64);
@@ -59,8 +59,9 @@ impl<S: PageSize> MemoryManager<S> {
                 let frame = frame_allocator
                     .allocate_frame()
                     .ok_or(MapToError::FrameAllocationFailed)?;
-                unsafe { page_table.map_to(page, frame, flags, &mut *frame_allocator) }
-                    .map(|flush| flush.flush())?;
+                page_table
+                    .map_to(page, frame, flags, &mut *frame_allocator)?
+                    .flush();
             }
 
             Ok(())
@@ -86,12 +87,14 @@ impl<S: PageSize> MemoryManager<S> {
             };
             let mut frame_allocator = super::FRAME_ALLOCATOR.lock();
 
-            page_range.enumerate().try_for_each(|(index, page)| {
+            for (index, page) in page_range.enumerate() {
                 let frame = start_frame + index as u64;
-                page_table
-                    .map_to(page, frame, flags, &mut *frame_allocator)
-                    .map(|flush| flush.flush())
-            })?;
+                match page_table.map_to(page, frame, flags, &mut *frame_allocator) {
+                    Ok(flush) => flush.flush(),
+                    Err(MapToError::PageAlreadyMapped(_)) => (),
+                    Err(err) => return Err(err),
+                }
+            }
 
             Ok(())
         })

@@ -16,12 +16,10 @@ pub struct Timer(BinaryHeap<TimerInfo>);
 struct TimerInfo(Reverse<u64>, #[derive_where(skip)] WeakSharedThread);
 
 impl Timer {
-    #[inline]
     const fn default() -> Self {
         Self(BinaryHeap::new())
     }
 
-    #[inline]
     fn update_timer(&mut self) {
         if let Some(timer_info) = self.0.peek() {
             let TimerInfo(Reverse(target_tick), _) = timer_info;

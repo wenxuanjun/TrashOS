@@ -48,8 +48,8 @@ fn terminal_event(terminal: &mut Terminal<Display>) {
 
 pub fn terminal_thread() {
     let mut terminal = Terminal::new(Display::default());
-    terminal.set_auto_crnl(true);
     terminal.set_auto_flush(false);
+    terminal.set_crnl_mapping(true);
     terminal.set_scroll_speed(5);
     terminal.set_font_manager(Box::new(BitmapFont));
 

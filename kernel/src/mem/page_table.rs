@@ -1,131 +1,128 @@
+use alloc::vec;
+use alloc::vec::Vec;
 use x86_64::structures::paging::FrameAllocator;
 use x86_64::structures::paging::FrameDeallocator;
+use x86_64::structures::paging::PageSize;
 use x86_64::structures::paging::PhysFrame;
+use x86_64::structures::paging::Size4KiB;
 use x86_64::structures::paging::mapper::*;
 use x86_64::structures::paging::{PageTable, PageTableFlags};
 use x86_64::{PhysAddr, VirtAddr};
 
-use super::FRAME_ALLOCATOR;
 use super::MappingType;
-use super::{BitmapFrameAllocator, PHYSICAL_MEMORY_OFFSET};
+use super::{FRAME_ALLOCATOR, PHYSICAL_MEMORY_OFFSET};
 use super::{convert_physical_to_virtual, convert_virtual_to_physical};
 
 pub trait ExtendedPageTable {
     fn physical_address(&self) -> PhysAddr;
-    fn write_to_mapped_address(&self, buffer: &[u8], address: VirtAddr);
+    unsafe fn write_to_mapped(&self, buffer: &[u8], address: VirtAddr);
     unsafe fn deep_copy(&self) -> OffsetPageTable<'static>;
-    unsafe fn free_user_page_table(&mut self);
+    unsafe fn free_user_pages(&mut self);
 }
 
 impl ExtendedPageTable for OffsetPageTable<'_> {
     fn physical_address(&self) -> PhysAddr {
-        let virtual_address: *const _ = self.level_4_table();
-        convert_virtual_to_physical(VirtAddr::new(virtual_address as u64))
+        let virtual_address = self.level_4_table() as *const _ as u64;
+        convert_virtual_to_physical(VirtAddr::new(virtual_address))
     }
 
-    fn write_to_mapped_address(&self, buffer: &[u8], address: VirtAddr) {
-        for (offset, &byte) in buffer.iter().enumerate() {
-            let address = address + offset as u64;
+    unsafe fn write_to_mapped(&self, buffer: &[u8], address: VirtAddr) {
+        let mut written: usize = 0;
+
+        while written < buffer.len() {
+            let current_address = address + written as u64;
+            let page_offset = current_address.as_u64() % Size4KiB::SIZE;
+            let remaining = (buffer.len() - written) as u64;
+            let chunk_size = (Size4KiB::SIZE - page_offset).min(remaining) as usize;
+
             let physical_address = self
-                .translate_addr(address)
+                .translate_addr(current_address)
                 .expect("Failed to translate address!");
-            let virtual_address = convert_physical_to_virtual(physical_address).as_u64();
-            unsafe { (virtual_address as *mut u8).write(byte) }
+            let virtual_address = convert_physical_to_virtual(physical_address);
+
+            core::ptr::copy_nonoverlapping(
+                buffer[written..written + chunk_size].as_ptr(),
+                virtual_address.as_mut_ptr::<u8>(),
+                chunk_size,
+            );
+            written += chunk_size;
+        }
+    }
+
+    unsafe fn free_user_pages(&mut self) {
+        let frame_allocator = &mut FRAME_ALLOCATOR.lock();
+        let mut table_frames_to_free: Vec<PhysFrame> = Vec::new();
+        let mut stack = vec![(self.level_4_table_mut() as *mut PageTable, 4)];
+
+        while let Some((table_ptr, current_level)) = stack.pop() {
+            let table = &mut *table_ptr;
+
+            let table_vaddr = VirtAddr::new(table_ptr as u64);
+            let table_paddr = convert_virtual_to_physical(table_vaddr);
+            let table_frame = PhysFrame::containing_address(table_paddr);
+            table_frames_to_free.push(table_frame);
+
+            for entry in table.iter_mut().filter(|entry| {
+                !entry.is_unused() && !entry.flags().contains(PageTableFlags::HUGE_PAGE)
+            }) {
+                if current_level == 1 {
+                    if entry.flags().contains(MappingType::UserCode.flags()) {
+                        if let Ok(frame) = entry.frame() {
+                            frame_allocator.deallocate_frame(frame);
+                        }
+                    }
+                } else {
+                    let child_address = convert_physical_to_virtual(entry.addr());
+                    stack.push((child_address.as_mut_ptr(), current_level - 1));
+                }
+            }
+        }
+
+        for frame in table_frames_to_free.into_iter().rev() {
+            frame_allocator.deallocate_frame(frame);
         }
     }
 
     unsafe fn deep_copy(&self) -> OffsetPageTable<'static> {
-        let source_table = self.level_4_table();
+        let frame_allocator = &mut FRAME_ALLOCATOR.lock();
 
-        let mut frame_allocator = FRAME_ALLOCATOR.lock();
-        let (mut new_page_table, _) = new_from_allocate(&mut frame_allocator);
-        let target_table = new_page_table.level_4_table_mut();
+        let root_table_frame = frame_allocator
+            .allocate_frame()
+            .expect("Failed to allocate frame for root page table")
+            .start_address();
 
-        new_from_recursion(&mut frame_allocator, source_table, target_table, 4);
-        new_page_table
-    }
+        let target_root_vaddr = convert_physical_to_virtual(root_table_frame);
+        let root_table: &mut PageTable = &mut *target_root_vaddr.as_mut_ptr();
+        root_table.zero();
 
-    unsafe fn free_user_page_table(&mut self) {
-        let mut frame_allocator = FRAME_ALLOCATOR.lock();
-        free_from_recursion(&mut frame_allocator, self.level_4_table_mut(), 4);
-    }
-}
+        let mut stack: Vec<(*const PageTable, *mut PageTable, u8)> =
+            vec![(self.level_4_table() as *const _, root_table as *mut _, 4)];
 
-unsafe fn new_from_allocate(
-    frame_allocator: &mut BitmapFrameAllocator,
-) -> (OffsetPageTable<'static>, PhysAddr) {
-    let page_table_address = BitmapFrameAllocator::allocate_frame(frame_allocator)
-        .expect("Failed to allocate frame for page table")
-        .start_address();
+        while let Some((source_table, target_table, level)) = stack.pop() {
+            for (index, entry) in (*source_table)
+                .iter()
+                .enumerate()
+                .filter(|(_, entry)| !entry.is_unused())
+            {
+                if level == 1 || entry.flags().contains(PageTableFlags::HUGE_PAGE) {
+                    (&mut *target_table)[index].set_addr(entry.addr(), entry.flags());
+                } else {
+                    let target_child_frame = frame_allocator
+                        .allocate_frame()
+                        .expect("Failed to allocate frame for child page table")
+                        .start_address();
 
-    let new_page_table =
-        &mut *convert_physical_to_virtual(page_table_address).as_mut_ptr::<PageTable>();
+                    let target_child_vaddr = convert_physical_to_virtual(target_child_frame);
+                    let target_child_table = &mut *target_child_vaddr.as_mut_ptr::<PageTable>();
+                    target_child_table.zero();
+                    (&mut *target_table)[index].set_addr(target_child_frame, entry.flags());
 
-    let physical_memory_offset = VirtAddr::new(*PHYSICAL_MEMORY_OFFSET);
-    let page_table = OffsetPageTable::new(new_page_table, physical_memory_offset);
-
-    (page_table, page_table_address)
-}
-
-unsafe fn new_from_recursion(
-    frame_allocator: &mut BitmapFrameAllocator,
-    source_page_table: &PageTable,
-    target_page_table: &mut PageTable,
-    page_table_level: u8,
-) {
-    for (index, entry) in source_page_table.iter().enumerate() {
-        if (page_table_level == 1)
-            || entry.is_unused()
-            || entry.flags().contains(PageTableFlags::HUGE_PAGE)
-        {
-            target_page_table[index].set_addr(entry.addr(), entry.flags());
-            continue;
-        }
-        let (mut new_page_table, new_page_table_address) = new_from_allocate(frame_allocator);
-        target_page_table[index].set_addr(new_page_table_address, entry.flags());
-
-        let source_page_table_next = &*convert_physical_to_virtual(entry.addr()).as_ptr();
-        let target_page_table_next = new_page_table.level_4_table_mut();
-
-        new_from_recursion(
-            frame_allocator,
-            source_page_table_next,
-            target_page_table_next,
-            page_table_level - 1,
-        );
-    }
-}
-
-unsafe fn free_from_recursion(
-    frame_allocator: &mut BitmapFrameAllocator,
-    page_table: &mut PageTable,
-    page_table_level: u8,
-) {
-    let virtual_address = VirtAddr::new(page_table as *const _ as u64);
-    let physical_address = convert_virtual_to_physical(virtual_address);
-
-    if page_table_level == 0 {
-        let frame = PhysFrame::containing_address(physical_address);
-        frame_allocator.deallocate_frame(frame);
-        return;
-    }
-
-    for entry in page_table.iter() {
-        if entry.is_unused() {
-            continue;
-        }
-
-        if page_table_level == 1 || entry.flags().contains(PageTableFlags::HUGE_PAGE) {
-            if entry.flags().contains(MappingType::UserCode.flags()) {
-                if let Ok(frame) = entry.frame() {
-                    frame_allocator.deallocate_frame(frame);
+                    let source_child_vaddr = convert_physical_to_virtual(entry.addr());
+                    stack.push((source_child_vaddr.as_ptr(), target_child_table, level - 1));
                 }
             }
-        } else {
-            let page_table = &mut *convert_physical_to_virtual(entry.addr()).as_mut_ptr();
-            free_from_recursion(frame_allocator, page_table, page_table_level - 1);
         }
-    }
 
-    frame_allocator.deallocate_frame(PhysFrame::containing_address(physical_address));
+        OffsetPageTable::new(root_table, VirtAddr::new(*PHYSICAL_MEMORY_OFFSET))
+    }
 }

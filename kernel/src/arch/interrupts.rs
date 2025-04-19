@@ -1,6 +1,6 @@
 use spin::Lazy;
 use x86_64::VirtAddr;
-use x86_64::instructions::port::PortReadOnly;
+use x86_64::instructions::port::Port;
 use x86_64::registers::control::Cr2;
 use x86_64::structures::idt::InterruptDescriptorTable;
 use x86_64::structures::idt::InterruptStackFrame;
@@ -85,15 +85,15 @@ extern "x86-interrupt" fn hpet_timer_interrupt(_frame: InterruptStackFrame) {
     TIMER.lock().wakeup();
 }
 
-extern "x86-interrupt" fn segment_not_present(frame: InterruptStackFrame, error_code: u64) {
+extern "x86-interrupt" fn segment_not_present(frame: InterruptStackFrame, code: u64) {
     log::error!("Exception: Segment Not Present\n{:#?}", frame);
-    log::error!("Error Code: {:#x}", error_code);
+    log::error!("Error Code: {:#x}", code);
     panic!("Unrecoverable fault occured, halting!");
 }
 
-extern "x86-interrupt" fn general_protection_fault(frame: InterruptStackFrame, error_code: u64) {
+extern "x86-interrupt" fn general_protection_fault(frame: InterruptStackFrame, code: u64) {
     log::error!("Exception: General Protection Fault\n{:#?}", frame);
-    log::error!("Error Code: {:#x}", error_code);
+    log::error!("Error Code: {:#x}", code);
     x86_64::instructions::hlt();
 }
 
@@ -106,27 +106,27 @@ extern "x86-interrupt" fn breakpoint(frame: InterruptStackFrame) {
     log::debug!("Exception: Breakpoint\n{:#?}", frame);
 }
 
-extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, error_code: u64) -> ! {
+extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, code: u64) -> ! {
     log::error!("Exception: Double Fault\n{:#?}", frame);
-    log::error!("Error Code: {:#x}", error_code);
+    log::error!("Error Code: {:#x}", code);
     panic!("Unrecoverable fault occured, halting!");
 }
 
 extern "x86-interrupt" fn keyboard_interrupt(_frame: InterruptStackFrame) {
     super::apic::end_of_interrupt();
-    let scancode = unsafe { PortReadOnly::new(0x60).read() };
+    let scancode = unsafe { Port::new(0x60).read() };
     SCANCODE_QUEUE.force_push(scancode);
 }
 
 extern "x86-interrupt" fn mouse_interrupt(_frame: InterruptStackFrame) {
     super::apic::end_of_interrupt();
-    let packet = unsafe { PortReadOnly::new(0x60).read() };
+    let packet = unsafe { Port::new(0x60).read() };
     crate::driver::mouse::MOUSE.lock().process_packet(packet);
 }
 
-extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, error_code: PageFaultErrorCode) {
+extern "x86-interrupt" fn page_fault(frame: InterruptStackFrame, code: PageFaultErrorCode) {
     log::warn!("Exception: Page Fault\n{:#?}", frame);
-    log::warn!("Error Code: {:#x}", error_code);
+    log::warn!("Error Code: {:#x}", code);
     match Cr2::read() {
         Ok(address) => {
             log::warn!("Fault Address: {:#x}", address);
