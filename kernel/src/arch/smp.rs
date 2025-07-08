@@ -9,10 +9,12 @@ use super::gdt::CpuInfo;
 #[unsafe(link_section = ".requests")]
 static MP_REQUEST: MpRequest = MpRequest::new();
 
-pub static BSP_LAPIC_ID: Lazy<u32> =
-    Lazy::new(|| MP_REQUEST.get_response().unwrap().bsp_lapic_id());
+pub static BSP_LAPIC_ID: Lazy<u32> = Lazy::new(|| {
+    let response = MP_REQUEST.get_response().unwrap();
+    response.bsp_lapic_id()
+});
 
-pub static CPUS: Lazy<RwLock<Cpus>> = Lazy::new(|| RwLock::new(Cpus::default()));
+pub static CPUS: Lazy<RwLock<Cpus>> = Lazy::new(RwLock::default);
 
 pub struct Cpus(BTreeMap<u32, CpuInfo>);
 
@@ -48,7 +50,7 @@ impl Cpus {
         let response = MP_REQUEST.get_response().unwrap();
 
         for cpu in response.cpus() {
-            if cpu.id != *BSP_LAPIC_ID {
+            if cpu.lapic_id != *BSP_LAPIC_ID {
                 self.0.insert(cpu.lapic_id, CpuInfo::default());
                 cpu.goto_address.write(ap_entry);
             }

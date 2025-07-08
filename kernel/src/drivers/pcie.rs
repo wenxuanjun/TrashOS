@@ -17,7 +17,7 @@ use crate::mem::{KERNEL_PAGE_TABLE, MappingType, MemoryManager};
 pub static PCI_DEVICES: Lazy<Mutex<Vec<PciDevice>>> = Lazy::new(|| {
     let access = PciAccess::new(&ACPI.pci_regions);
     let devices = PciResolver::resolve(access);
-    devices.iter().for_each(|device| log::info!("{}", device));
+    devices.iter().for_each(|device| log::info!("{device}"));
     Mutex::new(devices)
 });
 
@@ -61,12 +61,12 @@ impl<'a> PciAccess<'a> {
 impl ConfigRegionAccess for PciAccess<'_> {
     unsafe fn read(&self, address: PciAddress, offset: u16) -> u32 {
         let address = self.mmio_address(address, offset);
-        ptr::read_volatile(address.as_ptr())
+        unsafe { ptr::read_volatile(address.as_ptr()) }
     }
 
     unsafe fn write(&self, address: PciAddress, offset: u16, value: u32) {
         let address = self.mmio_address(address, offset);
-        ptr::write_volatile(address.as_mut_ptr(), value);
+        unsafe { ptr::write_volatile(address.as_mut_ptr(), value) };
     }
 }
 

@@ -34,7 +34,7 @@ impl From<&Identify> for IdentifyData {
             serial_number: parse(&info.serial_number),
             firmware_revision: parse(&info.firmware_revision),
             model_number: parse(&info.model),
-            block_count: info.lba48_sectors as u64,
+            block_count: info.lba48_sectors,
         }
     }
 }

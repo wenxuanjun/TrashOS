@@ -6,8 +6,8 @@ use gpt_disk_io::BlockIo;
 use gpt_disk_types::{BlockSize, Lba};
 use thiserror::Error;
 
-use crate::driver::ahci::{self, AhciBlockDevice};
-use crate::driver::nvme::NvmeBlockDevice;
+use crate::drivers::ahci::{self, AhciBlockDevice};
+use crate::drivers::nvme::NvmeBlockDevice;
 
 #[derive(Error, Debug)]
 pub enum BlockDeviceError {
@@ -23,8 +23,6 @@ pub enum BlockDeviceError {
     InvalidInput,
     #[error("Device naming error: {0}")]
     NamingError(String),
-    #[error("GPT processing error: {0}")]
-    GptError(String),
 }
 
 pub type BlockDeviceResult<T> = Result<T, BlockDeviceError>;
@@ -33,6 +31,7 @@ pub trait BlockDevice: Send + Sync + Any {
     fn block_size(&self) -> usize;
     fn block_count(&self) -> u64;
 
+    fn flush(&self) -> BlockDeviceResult<()>;
     fn read_block(&self, block_id: u64, buffer: &mut [u8]) -> BlockDeviceResult<()>;
     fn write_block(&self, block_id: u64, buffer: &[u8]) -> BlockDeviceResult<()>;
 }
@@ -44,6 +43,10 @@ impl BlockDevice for AhciBlockDevice {
 
     fn block_count(&self) -> u64 {
         self.identify.block_count
+    }
+
+    fn flush(&self) -> BlockDeviceResult<()> {
+        Ok(())
     }
 
     fn read_block(&self, lba: u64, buffer: &mut [u8]) -> BlockDeviceResult<()> {
@@ -66,6 +69,14 @@ impl BlockDevice for NvmeBlockDevice {
         self.namespace.block_count()
     }
 
+    fn flush(&self) -> BlockDeviceResult<()> {
+        let qpair = self
+            .qpairs
+            .get(&1)
+            .ok_or(BlockDeviceError::DeviceNotFound)?;
+        qpair.lock().flush().map_err(BlockDeviceError::from)
+    }
+
     fn read_block(&self, lba: u64, buffer: &mut [u8]) -> BlockDeviceResult<()> {
         let qpair = self
             .qpairs
@@ -75,7 +86,7 @@ impl BlockDevice for NvmeBlockDevice {
             .lock()
             .read(buffer.as_mut_ptr(), buffer.len(), lba)
             .map_err(BlockDeviceError::from)?;
-        Ok(())
+        qpair.lock().flush().map_err(BlockDeviceError::from)
     }
 
     fn write_block(&self, lba: u64, buffer: &[u8]) -> BlockDeviceResult<()> {
@@ -87,7 +98,7 @@ impl BlockDevice for NvmeBlockDevice {
             .lock()
             .write(buffer.as_ptr(), buffer.len(), lba)
             .map_err(BlockDeviceError::from)?;
-        Ok(())
+        qpair.lock().flush().map_err(BlockDeviceError::from)
     }
 }
 
@@ -109,17 +120,15 @@ impl<T: BlockDevice + ?Sized> BlockIo for BlockDeviceWrapper<T> {
     }
 
     fn flush(&mut self) -> Result<(), Self::Error> {
-        Ok(())
+        self.0.flush()
     }
 
     fn read_blocks(&mut self, lba: Lba, dst: &mut [u8]) -> Result<(), Self::Error> {
-        self.0.read_block(lba.0, dst)?;
-        Ok(())
+        self.0.read_block(lba.0, dst)
     }
 
     fn write_blocks(&mut self, lba: Lba, src: &[u8]) -> Result<(), Self::Error> {
-        self.0.write_block(lba.0, src)?;
-        Ok(())
+        self.0.write_block(lba.0, src)
     }
 }
 
@@ -153,6 +162,10 @@ impl BlockDevice for PartitionBlockDevice {
 
     fn block_count(&self) -> u64 {
         self.block_count
+    }
+
+    fn flush(&self) -> BlockDeviceResult<()> {
+        self.parent.flush()
     }
 
     fn read_block(&self, block_id: u64, buffer: &mut [u8]) -> BlockDeviceResult<()> {

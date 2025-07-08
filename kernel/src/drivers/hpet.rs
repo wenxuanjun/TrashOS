@@ -78,7 +78,7 @@ impl Hpet {
 
             if !route_cap.get_bit(IrqVector::HpetTimer as usize) {
                 log::warn!("HPET timer does not support our IRQ vector!");
-                log::info!("Timer route capabilities: {:#032b}", route_cap);
+                log::info!("Timer route capabilities: {route_cap:#032b}");
             }
 
             let timer_config = ((IrqVector::HpetTimer as u64) << 9) | (1 << 2);

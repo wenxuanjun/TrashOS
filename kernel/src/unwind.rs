@@ -24,7 +24,7 @@ static KERNEL_FILE: Lazy<File> = Lazy::new(|| unsafe {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    log::error!("{}", info);
+    log::error!("{info}");
     log::error!("Backtrace:");
 
     struct Counter(usize);

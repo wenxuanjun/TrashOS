@@ -9,8 +9,8 @@ use os_terminal::{MouseInput, Terminal};
 use spin::Lazy;
 
 use super::writer::TerminalWriter;
-use crate::driver::mouse::{MOUSE_BUFFER, MouseEvent};
-use crate::driver::{display::Display, speaker::SPEAKER};
+use crate::drivers::mouse::{MOUSE_BUFFER, MouseEvent};
+use crate::drivers::{display::Display, speaker::SPEAKER};
 use crate::syscall::r#yield;
 
 const SCANCODE_QUEUE_SIZE: usize = 128;

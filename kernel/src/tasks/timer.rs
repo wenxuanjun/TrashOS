@@ -5,7 +5,7 @@ use spin::Mutex;
 
 use super::scheduler::SCHEDULER;
 use super::thread::WeakSharedThread;
-use crate::driver::hpet::HPET;
+use crate::drivers::hpet::HPET;
 
 pub static TIMER: Mutex<Timer> = Mutex::new(Timer::default());
 

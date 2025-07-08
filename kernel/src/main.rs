@@ -1,11 +1,12 @@
 #![no_std]
 #![no_main]
 
-use kernel::driver::hpet::HPET;
-use kernel::driver::rtc::RtcDateTime;
-use kernel::driver::term::terminal_thread;
-use kernel::task::process::Process;
-use kernel::task::thread::Thread;
+use kernel::drivers::hpet::HPET;
+use kernel::drivers::rtc::RtcDateTime;
+use kernel::drivers::term::terminal_thread;
+use kernel::tasks::process::Process;
+use kernel::tasks::thread::Thread;
+// use kernel::tasks::kservice::kservice_thread;
 use limine::BaseRevision;
 use unwinding::panic::catch_unwind;
 
@@ -16,6 +17,7 @@ static BASE_REVISION: BaseRevision = BaseRevision::new();
 #[unsafe(no_mangle)]
 extern "C" fn kmain() -> ! {
     catch_unwind(kernel::init).unwrap();
+    // Thread::new_kernel_thread(kservice_thread);
     Thread::new_kernel_thread(terminal_thread);
     log::info!("Boot time: {:?}", HPET.elapsed());
 
@@ -25,14 +27,15 @@ extern "C" fn kmain() -> ! {
     kernel::println!();
 
     let current_time = RtcDateTime::default().to_datetime().unwrap();
-    log::info!("Current time: {}", current_time);
+    log::info!("Current time: {current_time}");
 
     let hello_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/hello");
     let counter_raw_elf = include_bytes!("../../target/x86_64-unknown-none/release/counter");
     Process::create("Hello", hello_raw_elf);
-    Process::create("Number", counter_raw_elf);
+    Process::create("Counter", counter_raw_elf);
 
-    kernel::io::test_manager().unwrap();
+    kernel::io::init_manager().unwrap();
+    kernel::drivers::xhci::test_xhci();
 
     loop {
         x86_64::instructions::hlt();

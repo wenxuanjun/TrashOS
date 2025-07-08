@@ -10,7 +10,7 @@ pub fn init() {
     let mut mouse = MOUSE.lock();
 
     if let Err(err) = mouse.init() {
-        log::error!("Failed to init mouse: {}", err);
+        log::error!("Failed to init mouse: {err}");
     } else {
         log::debug!("Mouse: {mouse}");
     }

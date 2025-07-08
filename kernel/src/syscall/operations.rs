@@ -7,8 +7,8 @@ use x86_64::VirtAddr;
 use crate::arch::interrupts::InterruptIndex;
 use crate::mem::ref_current_page_table;
 use crate::mem::{MappingType, MemoryManager};
-use crate::task::scheduler::SCHEDULER;
-use crate::task::timer::TIMER;
+use crate::tasks::scheduler::SCHEDULER;
+use crate::tasks::timer::TIMER;
 
 pub fn write(buffer: *const u8, length: usize) -> isize {
     if length == 0 {

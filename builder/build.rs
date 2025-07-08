@@ -51,7 +51,7 @@ fn create_fat(files: &Files, out_path: &Path) -> Result<()> {
         .truncate(true)
         .open(out_path)?;
 
-    const ADDITIONAL_SPACE: u64 = 1024 * 128;
+    const ADDITIONAL_SPACE: u64 = 1024 * 96;
     let total_size: u64 = files
         .values()
         .map(|p| fs::metadata(p).map(|m| m.len()))

@@ -44,7 +44,7 @@ impl FromArgValue for StorageDevice {
             "nvme" => Ok(StorageDevice::Nvme),
             "ahci" => Ok(StorageDevice::Ahci),
             "virtio" => Ok(StorageDevice::Virtio),
-            _ => Err(format!("Invalid storage device: {}", value)),
+            _ => Err(format!("Invalid storage device: {value}")),
         }
     }
 }
@@ -52,7 +52,7 @@ impl FromArgValue for StorageDevice {
 fn main() -> Result<()> {
     let args: Args = argh::from_env();
     let img_path = Path::new(env!("IMG_PATH"));
-    println!("Image path: {:?}", img_path);
+    println!("Image path: {img_path:?}");
 
     let mut cmd = Command::new("qemu-system-x86_64");
     cmd.arg("-machine").arg("q35");
@@ -70,13 +70,16 @@ fn main() -> Result<()> {
         cmd.arg("-serial").arg("stdio");
     }
 
+    cmd.arg("-device").arg("qemu-xhci,id=xhci");
+    cmd.args(["-device", "usb-kbd", "-device", "usb-mouse"]);
+
     if let Some(backend) = match std::env::consts::OS {
         "linux" => Some("pa"),
         "macos" => Some("coreaudio"),
         "windows" => Some("dsound"),
         _ => None,
     } {
-        cmd.arg("-audiodev").arg(format!("{},id=sound", backend));
+        cmd.arg("-audiodev").arg(format!("{backend},id=sound"));
         cmd.arg("-machine").arg("pcspk-audiodev=sound");
         cmd.arg("-device").arg("intel-hda");
         cmd.arg("-device").arg("hda-output,audiodev=sound");

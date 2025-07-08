@@ -53,5 +53,7 @@ $ cargo run --release -- --kvm --serial
 - [ ] Filesystem support
 - [ ] Shell
 - [x] NVMe support
-- [ ] Brain Fuck Scheduler
+- [ ] Brain Fuck Scheduler (or MuQSS)
 - [ ] Enlargable & shrinkable heap
+- [ ] xHCI driver & USB stack support
+- [ ] E1000/RTL8169 driver & Network stack

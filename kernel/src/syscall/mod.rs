@@ -23,21 +23,19 @@ pub fn init() {
     }
 }
 
-#[naked]
+#[unsafe(naked)]
 extern "C" fn syscall_handler() {
-    unsafe {
-        core::arch::naked_asm!(
-            "push rcx",
-            "push r11",
+    core::arch::naked_asm!(
+        "push rcx",
+        "push r11",
 
-            // Move the 4th argument in r10 to rcx to fit the C ABI
-            "mov rcx, r10",
-            "call {syscall_matcher}",
+        // Move the 4th argument in r10 to rcx to fit the C ABI
+        "mov rcx, r10",
+        "call {syscall_matcher}",
 
-            "pop r11",
-            "pop rcx",
-            "sysretq",
-            syscall_matcher = sym syscall_matcher,
-        );
-    }
+        "pop r11",
+        "pop rcx",
+        "sysretq",
+        syscall_matcher = sym syscall_matcher,
+    );
 }

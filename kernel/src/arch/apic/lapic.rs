@@ -10,7 +10,7 @@ use x86_64::structures::paging::PhysFrame;
 
 use crate::arch::acpi::ACPI;
 use crate::arch::interrupts::InterruptIndex;
-use crate::driver::hpet::HPET;
+use crate::drivers::hpet::HPET;
 use crate::mem::convert_physical_to_virtual;
 use crate::mem::{KERNEL_PAGE_TABLE, MappingType, MemoryManager};
 
@@ -78,7 +78,7 @@ pub unsafe fn calibrate_timer() {
 
     let average_ticks_per_ms = lapic_total_ticks / TIMER_CALIBRATION_ITERATION;
     let calibrated_timer_initial = average_ticks_per_ms * 1000 / TIMER_FREQUENCY_HZ;
-    log::debug!("Calibrated timer initial: {}", calibrated_timer_initial);
+    log::debug!("Calibrated timer initial: {calibrated_timer_initial}");
 
     lapic.set_timer_mode(TimerMode::Periodic);
     lapic.set_timer_initial(calibrated_timer_initial);

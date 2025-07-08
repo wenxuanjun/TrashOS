@@ -12,7 +12,7 @@ use x86_64::structures::paging::{PageSize, Size4KiB};
 
 use super::block::{BlockDevice, BlockDeviceError};
 use super::block::{BlockDeviceWrapper, PartitionBlockDevice};
-use crate::{driver::nvme::NvmeBlockDevice, mem::AlignedBuffer};
+use crate::{drivers::nvme::NvmeBlockDevice, mem::AlignedBuffer};
 
 #[derive(Error, Debug)]
 pub enum DeviceManagerError {
@@ -112,10 +112,8 @@ impl DeviceManager {
 
         match device {
             DeviceSource::ScsiLike(device) => {
-                let final_name = find_name(prefix, create_scsi_name);
-
                 self.register_internal(
-                    final_name,
+                    find_name(prefix, create_scsi_name),
                     device,
                     DeviceKind::Root(RootDeviceType::ScsiLike),
                 )
@@ -153,7 +151,7 @@ impl DeviceManager {
 
         self.devices.insert(id, info);
         self.names.insert(name.clone(), id);
-        log::info!("{kind} (name: {}, id: {:?}) registered", name, id);
+        log::info!("{kind} (name: {name}, id: {id:?}) registered");
 
         if matches!(kind, DeviceKind::Root(_)) {
             self.scan_partitions(id)?;
@@ -174,7 +172,7 @@ impl DeviceManager {
                 .devices
                 .iter()
                 .filter(|(_, info)| match &info.kind {
-                    DeviceKind::Partition { parent, .. } => *parent == id,
+                    DeviceKind::Partition { parent } => *parent == id,
                     _ => false,
                 })
                 .map(|(part_id, _)| *part_id)
@@ -193,7 +191,7 @@ impl DeviceManager {
         Ok(())
     }
 
-    pub fn scan_partitions(&mut self, root_id: DeviceId) -> Result<()> {
+    fn scan_partitions(&mut self, root_id: DeviceId) -> Result<()> {
         let root_info = self
             .devices
             .get(&root_id)
@@ -215,6 +213,7 @@ impl DeviceManager {
             root_info.kind,
             DeviceKind::Root(RootDeviceType::NvmeNamespace)
         );
+        let part_divider = if is_nvme { "p" } else { "" };
 
         for (index, entry) in disk
             .gpt_partition_entry_array_iter(layout, &mut block_buf)?
@@ -222,13 +221,6 @@ impl DeviceManager {
             .filter_map(|(i, e)| e.ok().map(|e| (i, e)))
             .filter(|(_, e)| e.is_used())
         {
-            let part_name = format!(
-                "{}{}{}",
-                root_info.name,
-                if is_nvme { "p" } else { "" },
-                index + 1
-            );
-
             let partition = PartitionBlockDevice::new(
                 root_info.device.clone(),
                 entry.starting_lba.to_u64(),
@@ -236,8 +228,8 @@ impl DeviceManager {
             )?;
 
             self.register_internal(
-                part_name,
-                Arc::new(partition) as Arc<dyn BlockDevice>,
+                format!("{}{}{}", root_info.name, part_divider, index + 1),
+                Arc::new(partition),
                 DeviceKind::Partition { parent: root_id },
             )?;
         }

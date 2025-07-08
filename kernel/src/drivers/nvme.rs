@@ -47,6 +47,11 @@ impl NvmeManager {
             let namespaces = controller.identify_namespaces(0).unwrap();
 
             let mapper = |namespace: Namespace| {
+                // Some(NvmeBlockDevice {
+                //     namespace,
+                //     qpairs: BTreeMap::new(),
+                // })
+
                 let qpair = controller
                     .create_io_queue_pair(namespace.clone(), 64)
                     .ok()?;
@@ -67,10 +72,10 @@ pub static NVME: Lazy<NvmeManager> = Lazy::new(|| {
 
     for device in PCI_DEVICES.lock().iter() {
         if device.device_type == DeviceType::NvmeController {
-            let Some(bar) = device.bars.first() else {
+            let Some(bar) = device.bars[0] else {
                 continue;
             };
-            let (address, size) = bar.unwrap().unwrap_mem();
+            let (address, size) = bar.unwrap_mem();
             let physical_address = PhysAddr::new(address as u64);
             let virtual_address = convert_physical_to_virtual(physical_address);
 

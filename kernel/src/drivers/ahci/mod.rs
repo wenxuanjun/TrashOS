@@ -38,10 +38,10 @@ pub static AHCI: Lazy<AhciManager> = Lazy::new(|| {
 
     for device in PCI_DEVICES.lock().iter() {
         if device.device_type == DeviceType::SataController {
-            let Some(bar) = device.bars.get(5) else {
+            let Some(bar) = device.bars[5] else {
                 continue;
             };
-            let (address, size) = bar.unwrap().unwrap_mem();
+            let (address, size) = bar.unwrap_mem();
             let physical_address = PhysAddr::new(address as u64);
             let virtual_address = convert_physical_to_virtual(physical_address);
 
