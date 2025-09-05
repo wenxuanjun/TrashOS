@@ -1,4 +1,4 @@
-use acpi::PciConfigRegions;
+use acpi::platform::PciConfigRegions;
 use alloc::alloc::Global;
 use alloc::vec::Vec;
 use capability::PciCapability;
@@ -21,10 +21,10 @@ pub static PCI_DEVICES: Lazy<Mutex<Vec<PciDevice>>> = Lazy::new(|| {
     Mutex::new(devices)
 });
 
-pub struct PciAccess<'a>(&'a PciConfigRegions<'a, Global>);
+pub struct PciAccess<'a>(&'a PciConfigRegions<Global>);
 
 impl<'a> PciAccess<'a> {
-    pub fn new(regions: &'a PciConfigRegions<'a, Global>) -> Self {
+    pub fn new(regions: &'a PciConfigRegions<Global>) -> Self {
         Self(regions)
     }
 
@@ -109,8 +109,8 @@ impl<'a> PciResolver<'a> {
             devices: Vec::new(),
         };
 
-        for region in resolver.access.0.iter() {
-            resolver.scan_segment(region.segment_group);
+        for region in resolver.access.0.regions.iter() {
+            resolver.scan_segment(region.pci_segment_group);
         }
 
         resolver.devices

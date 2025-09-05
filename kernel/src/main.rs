@@ -6,7 +6,6 @@ use kernel::drivers::rtc::RtcDateTime;
 use kernel::drivers::term::terminal_thread;
 use kernel::tasks::process::Process;
 use kernel::tasks::thread::Thread;
-// use kernel::tasks::kservice::kservice_thread;
 use limine::BaseRevision;
 use unwinding::panic::catch_unwind;
 
@@ -17,7 +16,6 @@ static BASE_REVISION: BaseRevision = BaseRevision::new();
 #[unsafe(no_mangle)]
 extern "C" fn kmain() -> ! {
     catch_unwind(kernel::init).unwrap();
-    // Thread::new_kernel_thread(kservice_thread);
     Thread::new_kernel_thread(terminal_thread);
     log::info!("Boot time: {:?}", HPET.elapsed());
 

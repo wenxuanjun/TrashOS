@@ -111,13 +111,11 @@ impl DeviceManager {
         };
 
         match device {
-            DeviceSource::ScsiLike(device) => {
-                self.register_internal(
-                    find_name(prefix, create_scsi_name),
-                    device,
-                    DeviceKind::Root(RootDeviceType::ScsiLike),
-                )
-            }
+            DeviceSource::ScsiLike(device) => self.register_internal(
+                find_name(prefix, create_scsi_name),
+                device,
+                DeviceKind::Root(RootDeviceType::ScsiLike),
+            ),
             DeviceSource::NvmeController(devices) => {
                 let id = find_name(prefix, |index| index.to_string());
 

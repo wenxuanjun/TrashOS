@@ -9,6 +9,7 @@ ENTRY(kmain)
 /* process. */
 PHDRS
 {
+    limine_requests PT_LOAD;
     text    PT_LOAD;
     rodata  PT_LOAD;
     data    PT_LOAD;
@@ -23,9 +24,21 @@ SECTIONS
     /* that is the beginning of the region. */
     . = 0xffffffff80000000;
 
+    /* Define a section to contain the Limine requests and assign it to its own PHDR */
+    .limine_requests : {
+        KEEP(*(.limine_requests_start))
+        KEEP(*(.limine_requests))
+        KEEP(*(.limine_requests_end))
+    } :limine_requests
+
+    /* Move to the next memory page for .rodata */
+    . = ALIGN(CONSTANT(MAXPAGESIZE));
+
     .text : {
         *(.text .text.*)
     } :text
+
+    /* Define the __etext symbol, which marks the end of the .text section */
     PROVIDE (__etext = .);
 
     /* Move to the next memory page for .rodata */
@@ -35,21 +48,16 @@ SECTIONS
         *(.rodata .rodata.*)
     } :rodata
 
+    /* Define the __eh_frame symbol, which marks the end of the .rodata section */
     . = ALIGN(8);
     PROVIDE(__eh_frame = .);
     .eh_frame : { KEEP (*(.eh_frame)) *(.eh_frame.*) }
 
     /* Move to the next memory page for .data */
-    . += CONSTANT(MAXPAGESIZE);
+    . = ALIGN(CONSTANT(MAXPAGESIZE));
 
     .data : {
         *(.data .data.*)
-
-        /* Place the sections that contain the Limine requests as part of the .data */
-        /* output section. */
-        KEEP(*(.requests_start_marker))
-        KEEP(*(.requests))
-        KEEP(*(.requests_end_marker))
     } :data
 
     /* Dynamic section for relocations, both in its own PHDR and inside data PHDR */

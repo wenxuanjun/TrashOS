@@ -65,8 +65,9 @@ impl DmaManager {
         let count = size.div_ceil(Self::UNIT_SIZE);
         let address = FRAME_ALLOCATOR.lock().allocate_frames(count).unwrap();
         let physical_address = address.start_address();
+        let virtual_address = convert_physical_to_virtual(physical_address);
 
-        (physical_address, convert_physical_to_virtual(physical_address))
+        (physical_address, virtual_address)
     }
 
     pub fn deallocate(address: VirtAddr) {

@@ -6,7 +6,7 @@ use x86_64::structures::idt::InterruptDescriptorTable;
 use x86_64::structures::idt::InterruptStackFrame;
 use x86_64::structures::idt::PageFaultErrorCode;
 
-// use super::gdt::DOUBLE_FAULT_IST_INDEX;
+use super::gdt::DOUBLE_FAULT_IST_INDEX;
 use crate::drivers::term::SCANCODE_QUEUE;
 use crate::tasks::scheduler::SCHEDULER;
 use crate::tasks::timer::TIMER;
@@ -41,11 +41,11 @@ pub static IDT: Lazy<InterruptDescriptorTable> = Lazy::new(|| {
     idt[InterruptIndex::Mouse as u8].set_handler_fn(mouse_interrupt);
     idt[InterruptIndex::HpetTimer as u8].set_handler_fn(hpet_timer_interrupt);
 
-    // unsafe {
-    //     idt.double_fault
-    //         .set_handler_fn(double_fault)
-    //         .set_stack_index(DOUBLE_FAULT_IST_INDEX as u16);
-    // }
+    unsafe {
+        idt.double_fault
+            .set_handler_fn(double_fault)
+            .set_stack_index(DOUBLE_FAULT_IST_INDEX as u16);
+    }
 
     idt
 });
@@ -104,11 +104,11 @@ extern "x86-interrupt" fn breakpoint(frame: InterruptStackFrame) {
     log::debug!("Exception: Breakpoint\n{frame:#?}");
 }
 
-// extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, code: u64) {
-//     log::error!("Exception: Double Fault\n{frame:#?}");
-//     log::error!("Error Code: {code:#x}");
-//     panic!("Unrecoverable fault occured, halting!");
-// }
+extern "x86-interrupt" fn double_fault(frame: InterruptStackFrame, code: u64) -> ! {
+    log::error!("Exception: Double Fault\n{frame:#?}");
+    log::error!("Error Code: {code:#x}");
+    panic!("Unrecoverable fault occured, halting!");
+}
 
 extern "x86-interrupt" fn keyboard_interrupt(_frame: InterruptStackFrame) {
     super::apic::end_of_interrupt();

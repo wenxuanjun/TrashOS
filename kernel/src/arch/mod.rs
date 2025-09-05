@@ -4,10 +4,10 @@ use limine::mp::Cpu;
 use x86_64::registers::control::{Cr0, Cr4};
 use x86_64::registers::control::{Cr0Flags, Cr4Flags};
 
-use super::arch::interrupts::IDT;
-use super::arch::smp::CPUS;
 use crate::syscall;
 use crate::tasks::scheduler::SCHEDULER_INIT;
+use interrupts::IDT;
+use smp::CPUS;
 
 pub mod acpi;
 pub mod apic;

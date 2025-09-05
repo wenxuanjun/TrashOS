@@ -1,6 +1,6 @@
 [workspace]
 members = ["apps/*", "builder", "kernel"]
-resolver = "2"
+resolver = "3"
 default-members = ["builder"]
 
 [profile.release]

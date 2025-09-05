@@ -3,7 +3,7 @@ use log::{LevelFilter, Log, Metadata};
 
 pub fn init() {
     set_logger(&Logger).unwrap();
-    set_max_level(LevelFilter::Trace);
+    set_max_level(LevelFilter::Debug);
 }
 
 macro_rules! log_output {

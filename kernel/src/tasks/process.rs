@@ -104,8 +104,8 @@ impl Drop for Process {
     fn drop(&mut self) {
         unsafe {
             self.page_table.free_user_pages();
-            log::trace!("Process {} dropped", self.id.0);
-            log::trace!("Memory usage: {}", FRAME_ALLOCATOR.lock());
+            log::debug!("Process {} dropped", self.id.0);
+            log::debug!("Memory usage: {}", FRAME_ALLOCATOR.lock());
         }
     }
 }
